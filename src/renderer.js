@@ -96,6 +96,7 @@ const I18N = {
     addedBm: 'Added to bookmarks', removedBm: 'Removed from bookmarks', downloadStarted: 'Downloading',
     aboutText: 'Man Browser {n} — by Man Studio. Chromium engine.',
     internalSite: 'Free Man Studio domain — works inside Man Browser', freeDomains: 'Free domains (manstudio.domain)',
+    hubMenu: 'All of Man Browser (browser.domain)',
   },
   he: {
     newTab: 'כרטיסייה חדשה', back: 'אחורה', forward: 'קדימה', reload: 'רענון', stop: 'עצירה', home: 'דף הבית',
@@ -133,6 +134,7 @@ const I18N = {
     addedBm: 'נוסף לסימניות', removedBm: 'הוסר מהסימניות', downloadStarted: 'מוריד',
     aboutText: 'Man Browser {n} — מבית Man Studio. מנוע Chromium.',
     internalSite: 'דומיין חינמי של Man Studio — עובד בתוך Man Browser', freeDomains: 'דומיינים בחינם (manstudio.domain)',
+    hubMenu: 'כל Man Browser (browser.domain)',
   },
 };
 
@@ -677,6 +679,7 @@ async function mainMenu() {
     { id: 'downloads', label: t('downloads'), accel: 'Ctrl+J' },
     { id: 'bookmarks', label: t('bookmarks') },
     { id: 'reopen-tab', label: t('reopen'), accel: 'Ctrl+Shift+T', enabled: closedStack.length > 0 },
+    { id: 'hub', label: t('hubMenu') },
     { id: 'domains', label: t('freeDomains') },
     { sep: 1 },
     { label: `${t('zoom')} (${z}%)`, sub: [
@@ -966,6 +969,8 @@ const CMDS = {
   print: () => { if (active && active.ready && !active.isNew) active.wv.print(); },
   domains: () => createTab('man://manstudio.domain/'),
   'whats-new': () => createTab('man://whatsnew.domain/'),
+  hub: () => createTab('man://browser.domain/'),
+  account: () => togglePanel('account'),
 };
 function runCmd(c) {
   if (c.startsWith('tab-')) { const n = +c.slice(4); select(n === 9 ? tabs[tabs.length - 1] : tabs[n - 1]); return; }

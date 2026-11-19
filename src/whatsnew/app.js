@@ -3,6 +3,14 @@
    To add a release: put a new entry at the TOP of CHANGELOG and bump "version" in package.json. */
 const CHANGELOG = [
   {
+    version: '1.6.0',
+    date: '2026-11-19',
+    items: [
+      { icon: '🧭', en: ['browser.domain', 'All of Man Browser in one place: its own pages (manstudio.domain, search.domain, whatsnew.domain), its tools and its keyboard shortcuts. Open it from the ⋮ menu.'],
+        he: ['browser.domain', 'כל Man Browser במקום אחד: הדפים שלו (manstudio.domain, search.domain, whatsnew.domain), הכלים שלו וקיצורי המקלדת. פותחים אותו מהתפריט ⋮.'] },
+    ],
+  },
+  {
     version: '1.5.0',
     date: '2026-11-19',
     items: [

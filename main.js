@@ -17,8 +17,12 @@ const INTERNAL_PAGES = {
   'manstudio.domain': path.join(__dirname, 'src', 'registrar'),
   'whatsnew.domain': path.join(__dirname, 'src', 'whatsnew'),
   'search.domain': path.join(__dirname, 'src', 'search'), // Man Search
+  'browser.domain': path.join(__dirname, 'src', 'hub'),   // all of Man Browser in one place
 };
 const WHATS_NEW = 'man://whatsnew.domain/';
+// commands the browser.domain page may run
+const HUB_CMDS = new Set(['settings', 'account', 'history', 'downloads', 'bookmarks', 'new-tab', 'new-window', 'incognito',
+  'reopen-tab', 'find', 'zoom-in', 'zoom-out', 'zoom-reset', 'fullscreen', 'print', 'devtools']);
 // Free endings. Keep in sync with server/src/index.js, src/renderer.js and src/registrar/app.js.
 const INTERNAL_TLD = /\.(fun|com|net|org|io|app|dev|xyz|site|online|game|me|blog|art|club|store|tech|co\.ms|ms|man|web|domain)$/i;
 const MIME = {
@@ -378,6 +382,15 @@ app.on('web-contents-created', (_e, wc) => {
       return { action: 'deny' };
     });
     wc.on('context-menu', (_ev, p) => contextMenu(wc, p));
+    // browser.domain's tool buttons link to man://browser.domain/cmd/<name>: run that browser command.
+    // Only the browser.domain page itself may do this, never another site.
+    wc.on('will-navigate', (ev, url) => {
+      const m = /^man:\/\/browser\.domain\/cmd\/([a-z-]+)$/i.exec(url);
+      if (!m) return;
+      ev.preventDefault();
+      if (!/^man:\/\/browser\.domain\//i.test(wc.getURL())) return;
+      if (HUB_CMDS.has(m[1])) sendHost(wc, 'cmd', m[1]);
+    });
     // A page asked "are you sure you want to leave?". Electron would silently cancel the navigation,
     // so ask the person like Chrome does.
     wc.on('will-prevent-unload', ev => {
