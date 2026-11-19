@@ -138,6 +138,7 @@ const L = {
     copy: 'Copy', cut: 'Cut', paste: 'Paste', selectAll: 'Select all', searchFor: s => `Search for “${s}”`,
     back: 'Back', forward: 'Forward', reload: 'Reload', viewSource: 'View page source', inspect: 'Inspect',
     allow: 'Allow', block: 'Block', permAsk: (o, p) => `${o} wants to ${p}`,
+    leave: 'Leave', stay: 'Stay', leaveQ: 'Leave site?', leaveD: 'Changes you made may not be saved.',
     perms: {
       media: 'use your camera and microphone', geolocation: 'know your location',
       notifications: 'show notifications', 'clipboard-read': 'read your clipboard', midi: 'use MIDI devices',
@@ -149,6 +150,7 @@ const L = {
     copy: 'העתקה', cut: 'גזירה', paste: 'הדבקה', selectAll: 'בחירת הכול', searchFor: s => `חיפוש ”${s}“`,
     back: 'אחורה', forward: 'קדימה', reload: 'רענון', viewSource: 'הצגת קוד המקור', inspect: 'בדיקת רכיב',
     allow: 'אישור', block: 'חסימה', permAsk: (o, p) => `${o} מבקש ${p}`,
+    leave: 'לעזוב', stay: 'להישאר', leaveQ: 'לעזוב את האתר?', leaveD: 'ייתכן שהשינויים שעשית לא יישמרו.',
     perms: {
       media: 'להשתמש במצלמה ובמיקרופון', geolocation: 'לדעת את המיקום שלך',
       notifications: 'להציג התראות', 'clipboard-read': 'לקרוא את הלוח', midi: 'להשתמש בהתקני MIDI',
@@ -347,6 +349,16 @@ app.on('web-contents-created', (_e, wc) => {
       return { action: 'deny' };
     });
     wc.on('context-menu', (_ev, p) => contextMenu(wc, p));
+    // A page asked "are you sure you want to leave?". Electron would silently cancel the navigation,
+    // so ask the person like Chrome does.
+    wc.on('will-prevent-unload', ev => {
+      const lab = T();
+      const r = dialog.showMessageBoxSync(winOf(wc), {
+        type: 'question', buttons: [lab.leave, lab.stay], defaultId: 0, cancelId: 1,
+        title: 'Man Browser', message: lab.leaveQ, detail: lab.leaveD,
+      });
+      if (r === 0) ev.preventDefault(); // leave anyway
+    });
   }
 });
 

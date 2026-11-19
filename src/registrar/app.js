@@ -39,6 +39,20 @@ const TEXT = {
     deleted: 'Domain deleted', confirmTpl: 'Replace your code with this template?', unsaved: 'Unsaved changes',
     tplBlank: 'Template: blank', tplPersonal: 'Template: personal page', tplGame: 'Template: game studio', tplLinks: 'Template: link list',
     recentTitle: 'Newest free sites', noneRecent: 'Be the first to register a domain!',
+    modeBuilder: '✨ Builder', modeCode: '</> Code', publishNow: 'Publish now', saving: 'Publishing…',
+    published: 'Published ✓ {n} — your site is live', saveFail: 'Couldn’t publish. Trying again…',
+    autoNote: 'Changes publish automatically.', toBuilder: 'Switch to the builder? Your code will be replaced with blocks.',
+    look: 'Look', addBlock: 'Add a block', noBlocks: 'No blocks yet. Add one below.',
+    moveUp: 'Move up', moveDown: 'Move down', removeBlock: 'Remove',
+    theme_violet: 'Violet night', theme_ocean: 'Ocean', theme_sunset: 'Sunset', theme_forest: 'Forest', theme_candy: 'Candy', theme_mono: 'Clean',
+    font_modern: 'Modern font', font_rounded: 'Rounded font', font_serif: 'Classic font', font_mono: 'Code font',
+    block_hero: 'Header', block_text: 'Text', block_image: 'Image', block_button: 'Button', block_links: 'Links',
+    block_cards: 'Cards', block_video: 'YouTube video', block_divider: 'Divider', block_footer: 'Footer',
+    f_title: 'Title', f_subtitle: 'Subtitle', f_button: 'Button text', f_link: 'Button link', f_heading: 'Heading',
+    f_body: 'Text', f_url: 'Link (URL)', f_caption: 'Caption', f_text: 'Text',
+    f_items_links: 'Links', f_items_cards: 'Cards',
+    ph_links: 'My YouTube | https://youtube.com\nMy game | man://mygame.fun', ph_cards: 'Fast | Loads in a second\nFree | Costs nothing',
+    hint_lines: 'One per line. Use | between the two parts.',
     footer: 'manstudio.domain · by Man Studio · Free domains work only inside Man Browser',
   },
   he: {
@@ -60,6 +74,20 @@ const TEXT = {
     deleted: 'הדומיין נמחק', confirmTpl: 'להחליף את הקוד בתבנית הזו?', unsaved: 'יש שינויים שלא נשמרו',
     tplBlank: 'תבנית: ריקה', tplPersonal: 'תבנית: דף אישי', tplGame: 'תבנית: סטודיו משחקים', tplLinks: 'תבנית: רשימת קישורים',
     recentTitle: 'האתרים החינמיים החדשים', noneRecent: 'היו הראשונים לקחת דומיין!',
+    modeBuilder: '✨ בנייה בלי קוד', modeCode: '</> קוד', publishNow: 'פרסום עכשיו', saving: 'מפרסם…',
+    published: 'פורסם ✓ {n} — האתר באוויר', saveFail: 'הפרסום נכשל. מנסה שוב…',
+    autoNote: 'כל שינוי מתפרסם אוטומטית.', toBuilder: 'לעבור לבנייה בלי קוד? הקוד שלך יוחלף בבלוקים.',
+    look: 'עיצוב', addBlock: 'הוספת בלוק', noBlocks: 'עוד אין בלוקים. הוסיפו אחד למטה.',
+    moveUp: 'למעלה', moveDown: 'למטה', removeBlock: 'מחיקה',
+    theme_violet: 'לילה סגול', theme_ocean: 'אוקיינוס', theme_sunset: 'שקיעה', theme_forest: 'יער', theme_candy: 'ממתק', theme_mono: 'נקי',
+    font_modern: 'גופן מודרני', font_rounded: 'גופן מעוגל', font_serif: 'גופן קלאסי', font_mono: 'גופן קוד',
+    block_hero: 'כותרת ראשית', block_text: 'טקסט', block_image: 'תמונה', block_button: 'כפתור', block_links: 'קישורים',
+    block_cards: 'כרטיסים', block_video: 'סרטון יוטיוב', block_divider: 'קו מפריד', block_footer: 'שורה תחתונה',
+    f_title: 'כותרת', f_subtitle: 'תת-כותרת', f_button: 'טקסט הכפתור', f_link: 'קישור הכפתור', f_heading: 'כותרת',
+    f_body: 'טקסט', f_url: 'קישור (URL)', f_caption: 'כיתוב', f_text: 'טקסט',
+    f_items_links: 'קישורים', f_items_cards: 'כרטיסים',
+    ph_links: 'היוטיוב שלי | https://youtube.com\nהמשחק שלי | man://mygame.fun', ph_cards: 'מהיר | נטען בשנייה\nחינם | לא עולה כלום',
+    hint_lines: 'אחד בכל שורה. שמים | בין שני החלקים.',
     footer: 'manstudio.domain · מבית Man Studio · הדומיינים החינמיים עובדים רק בתוך Man Browser',
   },
 };
@@ -239,7 +267,7 @@ async function check() {
 async function register(d) {
   const title = d.split('.')[0].replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   try {
-    const st = await rpc('mb_site_register', { p_domain: d, p_token: ownerKey, p_session: account && account.session, p_title: title, p_html: TEMPLATES.personal(d, title) });
+    const st = await rpc('mb_site_register', { p_domain: d, p_token: ownerKey, p_session: account && account.session, p_title: title, p_html: Builder.render(Builder.template('personal', title, d), title) });
     if (st === 'ok') {
       toast(t('registered', { d }));
       $('#result').hidden = true; $('#name').value = '';
@@ -274,51 +302,124 @@ async function loadMine() {
   }
 }
 
-/* ---------- editor ---------- */
-let editing = null, dirty = false;
-const preview = () => { $('#ed-preview').srcdoc = $('#ed-code').value; };
+/* ---------- editor: no-code builder + code, auto-publish ---------- */
+// No "unsaved changes" guard here: Electron silently cancels navigation when a page blocks unload,
+// which made Visit and the address bar do nothing. Instead every change is published automatically.
+let editing = null, mode = 'builder', bstate = null, saveT = null, saving = false, pending = false;
+const codeBox = () => $('#ed-code');
+const preview = () => { $('#ed-preview').srcdoc = codeBox().value; };
 let previewT;
+function setStatus(key, cls, n) { const s = $('#ed-status'); s.textContent = t(key, { n }); s.className = 'dim ' + (cls || ''); }
+function setMode(m) {
+  mode = m;
+  $('#mode-builder').classList.toggle('on', m === 'builder');
+  $('#mode-code').classList.toggle('on', m === 'code');
+  $('#ed-builder').hidden = m !== 'builder';
+  codeBox().hidden = m !== 'code';
+}
+function builderChanged() {
+  codeBox().value = Builder.render(bstate, $('#ed-title').value || (editing && editing.domain));
+  clearTimeout(previewT); previewT = setTimeout(preview, 150);
+  scheduleSave();
+}
 function openEditor(s) {
   if (!s) return;
-  editing = s; dirty = false;
+  editing = s;
   $('#editor').hidden = false;
   $('#ed-domain').textContent = s.domain;
   $('#ed-title').value = s.title || '';
-  $('#ed-code').value = s.html || '';
-  $('#ed-status').textContent = '';
+  codeBox().value = s.html || '';
   $('#ed-template').value = '';
+  setStatus('autoNote');
+  bstate = Builder.parse(s.html);
+  if (bstate) { setMode('builder'); Builder.mount($('#ed-builder'), bstate, builderChanged, t); }
+  else setMode('code');
   preview();
   $('#editor').scrollIntoView({ behavior: 'smooth' });
 }
-function markDirty() { dirty = true; $('#ed-status').textContent = t('unsaved'); }
-$('#ed-code').addEventListener('input', () => { markDirty(); clearTimeout(previewT); previewT = setTimeout(preview, 300); });
-$('#ed-title').addEventListener('input', markDirty);
-$('#ed-code').addEventListener('keydown', e => {
+function scheduleSave() {
+  if (!editing) return;
+  setStatus('saving');
+  clearTimeout(saveT);
+  saveT = setTimeout(save, 800);
+}
+async function save() {
+  if (!editing) return;
+  clearTimeout(saveT);
+  if (saving) { pending = true; return; }
+  saving = true;
+  const title = $('#ed-title').value, html = codeBox().value;
+  try {
+    const ok = await rpc('mb_site_update', { p_domain: editing.domain, p_token: ownerKey, p_title: title, p_html: html });
+    if (!ok) throw new Error('denied');
+    editing.title = title; editing.html = html;
+    setStatus('published', 'ok', new Date().toLocaleTimeString(lang === 'he' ? 'he-IL' : 'en-US', { hour: '2-digit', minute: '2-digit' }));
+  } catch {
+    setStatus('saveFail', 'bad');
+    saveT = setTimeout(save, 5000); // try again
+  } finally {
+    saving = false;
+    if (pending) { pending = false; save(); }
+  }
+}
+$('#mode-builder').onclick = () => {
+  if (mode === 'builder' || !editing) return;
+  if (!bstate) {
+    if (codeBox().value.trim() && !confirm(t('toBuilder'))) return;
+    bstate = Builder.template('personal', $('#ed-title').value, editing.domain);
+  }
+  setMode('builder');
+  Builder.mount($('#ed-builder'), bstate, builderChanged, t);
+  builderChanged();
+};
+$('#mode-code').onclick = () => { if (editing) setMode('code'); };
+codeBox().addEventListener('input', () => {
+  // hand-edited code no longer matches the blocks: drop the builder data so the code wins next time
+  if (bstate || /<!--msb:/.test(codeBox().value)) {
+    const pos = codeBox().selectionStart, before = codeBox().value.length;
+    codeBox().value = Builder.stripData(codeBox().value);
+    const p = Math.max(0, pos - (before - codeBox().value.length));
+    codeBox().setSelectionRange(p, p);
+    bstate = null;
+  }
+  clearTimeout(previewT); previewT = setTimeout(preview, 300);
+  scheduleSave();
+});
+$('#ed-title').addEventListener('input', () => { if (mode === 'builder' && bstate) builderChanged(); else scheduleSave(); });
+codeBox().addEventListener('keydown', e => {
   if (e.key === 'Tab') { e.preventDefault(); document.execCommand('insertText', false, '  '); }
   if (e.key === 's' && e.ctrlKey) { e.preventDefault(); save(); }
 });
 $('#ed-template').addEventListener('change', e => {
   const k = e.target.value;
   if (!k || !editing) return;
-  if ($('#ed-code').value.trim() && !confirm(t('confirmTpl'))) { e.target.value = ''; return; }
-  $('#ed-code').value = TEMPLATES[k](editing.domain, $('#ed-title').value || editing.domain);
-  markDirty(); preview();
+  if (!confirm(t('confirmTpl'))) { e.target.value = ''; return; }
+  if (mode === 'builder') {
+    bstate = Builder.template(k, $('#ed-title').value, editing.domain);
+    Builder.mount($('#ed-builder'), bstate, builderChanged, t);
+    builderChanged();
+  } else {
+    bstate = null;
+    codeBox().value = TEMPLATES[k](editing.domain, $('#ed-title').value || editing.domain);
+    preview(); scheduleSave();
+  }
+  e.target.value = '';
 });
-async function save() {
-  if (!editing) return;
-  try {
-    const ok = await rpc('mb_site_update', { p_domain: editing.domain, p_token: ownerKey, p_title: $('#ed-title').value, p_html: $('#ed-code').value });
-    if (!ok) throw new Error('denied');
-    editing.title = $('#ed-title').value; editing.html = $('#ed-code').value; dirty = false;
-    $('#ed-status').textContent = t('saved'); toast(t('saved'));
-    loadMine();
-  } catch { $('#ed-status').textContent = t('saveFail'); }
-}
 $('#ed-save').onclick = save;
-$('#ed-visit').onclick = () => editing && goTo(editing.domain);
-$('#ed-close').onclick = () => { $('#editor').hidden = true; editing = null; };
+// Leaving the page (address bar, link, closing the tab) right after an edit: send the last change
+// with keepalive so it still reaches the server. Browsers allow up to 64 KB this way.
+window.addEventListener('pagehide', () => {
+  if (!editing || !saveT) return;
+  clearTimeout(saveT); saveT = null;
+  const body = JSON.stringify({ p_domain: editing.domain, p_token: ownerKey, p_title: $('#ed-title').value, p_html: codeBox().value });
+  if (body.length > 63000) return;
+  try { fetch(`${API}/rpc/mb_site_update`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true }); } catch { /* ignore */ }
+});
+$('#ed-visit').onclick = async () => { if (!editing) return; await save(); goTo(editing.domain); };
+$('#ed-close').onclick = async () => { await save(); $('#editor').hidden = true; editing = null; loadMine(); };
 $('#ed-delete').onclick = async () => {
   if (!editing || !confirm(t('confirmDel', { d: editing.domain }))) return;
+  clearTimeout(saveT);
   try {
     await rpc('mb_site_delete', { p_domain: editing.domain, p_token: ownerKey });
     toast(t('deleted'));
@@ -326,7 +427,6 @@ $('#ed-delete').onclick = async () => {
     loadMine(); loadRecent();
   } catch { toast(t('error')); }
 };
-window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
 
 /* ---------- recent ---------- */
 async function loadRecent() {

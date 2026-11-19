@@ -3,6 +3,18 @@
    To add a release: put a new entry at the TOP of CHANGELOG and bump "version" in package.json. */
 const CHANGELOG = [
   {
+    version: '1.3.0',
+    date: '2026-11-19',
+    items: [
+      { icon: '✨', en: ['Build a site without code', 'At manstudio.domain, sites now open in a no-code builder: pick a look, then add headers, text, images, buttons, links, cards and YouTube videos. Prefer code? Switch to the Code tab.'],
+        he: ['בונים אתר בלי קוד', 'ב-manstudio.domain האתרים נפתחים עכשיו בבנייה בלי קוד: בוחרים עיצוב ומוסיפים כותרות, טקסט, תמונות, כפתורים, קישורים, כרטיסים וסרטוני יוטיוב. מעדיפים קוד? עוברים ללשונית קוד.'] },
+      { icon: '🚀', en: ['Changes publish by themselves', 'Every change to your site goes live automatically. No more edits that never got published.'],
+        he: ['השינויים מתפרסמים לבד', 'כל שינוי באתר עולה לאוויר אוטומטית. אין יותר עריכות שלא פורסמו.'] },
+      { icon: '🧭', en: ['Changing the address always works', 'Fixed: after editing a site, the address bar and the Visit button could do nothing. Pages that ask “Leave site?” now show a real question.'],
+        he: ['שינוי כתובת תמיד עובד', 'תוקן: אחרי עריכת אתר, שורת הכתובת והכפתור "כניסה" לפעמים לא עשו כלום. דפים ששואלים "לעזוב את האתר?" מציגים עכשיו שאלה אמיתית.'] },
+    ],
+  },
+  {
     version: '1.2.0',
     date: '2026-11-19',
     items: [

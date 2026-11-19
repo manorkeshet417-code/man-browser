@@ -57,17 +57,22 @@
       </div>
     </div>
     <div class="row">
+      <div class="modes" role="tablist">
+        <button id="mode-builder" type="button" data-t="modeBuilder"></button>
+        <button id="mode-code" type="button" data-t="modeCode"></button>
+      </div>
       <input id="ed-title" maxlength="120" data-tp="titlePh">
       <select id="ed-template"></select>
     </div>
     <div class="split">
-      <textarea id="ed-code" spellcheck="false"></textarea>
+      <div id="ed-builder" class="builder"></div>
+      <textarea id="ed-code" spellcheck="false" hidden></textarea>
       <iframe id="ed-preview" sandbox="allow-scripts" title="preview"></iframe>
     </div>
     <div class="row end">
       <span id="ed-status" class="dim"></span>
       <button id="ed-delete" class="danger" data-t="delete"></button>
-      <button id="ed-save" class="primary" data-t="save"></button>
+      <button id="ed-save" class="primary" data-t="publishNow"></button>
     </div>
   </section>
 
@@ -78,6 +83,7 @@
 
   <footer class="dim" data-t="footer"></footer>
   <div id="toast" hidden></div>
+  <script src="/builder.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>
