@@ -83,6 +83,8 @@ footer { max-width: 1060px; margin: 10px auto 40px; padding: 0 24px; font-size: 
 .modes { display: flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--soft); flex: none; }
 .modes button { height: 36px; padding: 0 14px; border-radius: 9px; background: transparent; color: var(--dim); }
 .modes button.on { background: var(--card); color: var(--text); box-shadow: var(--shadow); }
+#ed-code.big { background: var(--soft); cursor: default; }
+#ed-code.big::placeholder { color: var(--text); font: 15px/1.6 "Segoe UI", system-ui, sans-serif; white-space: pre-wrap; opacity: .9; }
 #ed-status.ok { color: var(--ok); }
 #ed-status.bad { color: var(--bad); }
 .builder { height: 100%; overflow: auto; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); }

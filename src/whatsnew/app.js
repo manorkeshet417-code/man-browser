@@ -3,6 +3,14 @@
    To add a release: put a new entry at the TOP of CHANGELOG and bump "version" in package.json. */
 const CHANGELOG = [
   {
+    version: '1.4.0',
+    date: '2026-11-19',
+    items: [
+      { icon: '🗂️', en: ['Sites up to 30 MB', 'A free site can now be up to 30 MB, so big projects with lots of code fit too.'],
+        he: ['אתרים עד 30 MB', 'אתר חינמי יכול להיות עכשיו עד 30 MB, כך שגם פרויקטים גדולים עם הרבה קוד נכנסים.'] },
+    ],
+  },
+  {
     version: '1.3.1',
     date: '2026-11-19',
     items: [

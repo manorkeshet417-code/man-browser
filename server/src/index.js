@@ -6,8 +6,10 @@ const DOMAIN_RE = /^[a-z0-9]([a-z0-9-]{0,40}[a-z0-9])?\.(fun|com|net|org|io|app|
 const DEV_ONLY_TLDS = new Set(['man']); // only Man Studio (role 'dev') may register these
 const RESERVED = new Set(['manstudio', 'man-studio', 'www', 'admin', 'support', 'official']);
 const MAX_PER_OWNER = 10;
-const MAX_HTML = 1800000;       // ~1.8 MB per site (D1 rows can hold up to 2 MB)
-const MAX_BODY = 4 * 1024 * 1024; // the JSON request can be bigger than the HTML (escaped quotes/newlines)
+const MAX_HTML = 1800000;           // old JSON API (mb_site_update): up to ~1.8 MB
+const MAX_BODY = 4 * 1024 * 1024;   // JSON requests
+const MAX_SITE = 30 * 1024 * 1024;  // a site can be up to 30 MB of UTF-8 (raw PUT /site/<domain>)
+const CHUNK = 900000;               // chars per row for the old JSON path (writeSite)
 
 // accounts
 const PBKDF2_ITERATIONS = 100000;
@@ -17,8 +19,9 @@ const LOCK_MINUTES = 15;
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, apikey',
+  'Access-Control-Allow-Methods': 'POST, GET, PUT, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, apikey, X-Owner-Key, X-Title',
+  'Access-Control-Expose-Headers': 'X-Title, X-Size',
   'Access-Control-Max-Age': '86400',
 };
 const json = (data, status = 200) => new Response(JSON.stringify(data), {
@@ -73,6 +76,105 @@ async function check(db, d, user) {
   if (DEV_ONLY_TLDS.has(tld) && !isDev) return 'dev_only';
   const row = await db.prepare('SELECT 1 FROM sites WHERE domain = ?').bind(d).first();
   return row ? 'taken' : 'ok';
+}
+
+/* ---------- site storage: small sites in sites.html, big ones split into site_chunks rows ---------- */
+async function readSite(db, d, countView) {
+  const row = await db.prepare('SELECT title, html, chunks, size, views, updated_at FROM sites WHERE domain = ?').bind(d).first();
+  if (!row) return null;
+  if (countView) await db.prepare('UPDATE sites SET views = views + 1 WHERE domain = ?').bind(d).run();
+  let html = row.html;
+  if (row.chunks > 0) {
+    const { results } = await db.prepare('SELECT data FROM site_chunks WHERE domain = ? ORDER BY idx').bind(d).all();
+    if (results.every(r => typeof r.data === 'string')) html = results.map(r => r.data).join('');
+    else {
+      const parts = results.map(r => (typeof r.data === 'string' ? new TextEncoder().encode(r.data) : new Uint8Array(r.data)));
+      const all = new Uint8Array(parts.reduce((n, x) => n + x.length, 0));
+      let o = 0; for (const x of parts) { all.set(x, o); o += x.length; }
+      html = new TextDecoder().decode(all);
+    }
+  }
+  return { domain: d, title: row.title, html, views: row.views + (countView ? 1 : 0), updated_at: row.updated_at };
+}
+async function writeSite(db, d, title, html) {
+  const t = now(), stmts = [db.prepare('DELETE FROM site_chunks WHERE domain = ?').bind(d)];
+  if (html.length <= CHUNK) {
+    stmts.push(db.prepare('UPDATE sites SET title = ?, html = ?, chunks = 0, size = ?, updated_at = ? WHERE domain = ?')
+      .bind(title, html, html.length, t, d));
+  } else {
+    let n = 0;
+    for (let i = 0; i < html.length; i += CHUNK, n++) {
+      stmts.push(db.prepare('INSERT INTO site_chunks (domain, idx, data) VALUES (?, ?, ?)').bind(d, n, html.slice(i, i + CHUNK)));
+    }
+    stmts.push(db.prepare("UPDATE sites SET title = ?, html = '', chunks = ?, size = ?, updated_at = ? WHERE domain = ?")
+      .bind(title, n, html.length, t, d));
+  }
+  await db.batch(stmts); // all or nothing
+}
+async function ownsSite(db, d, token) {
+  if (!tokenOk(token)) return 'bad_token';
+  const row = await db.prepare('SELECT owner_hash FROM sites WHERE domain = ?').bind(d).first();
+  if (!row) return 'no_site';
+  return row.owner_hash === await sha256(token) ? 'ok' : 'not_owner';
+}
+
+/* Big sites are streamed piece by piece: a free Worker has 128 MB of memory, so a 30 MB page
+   must never be held in memory as a whole (it failed at 29 MB when it was). */
+async function streamPublish(db, d, title, body) {
+  // leftovers from an upload that died half way
+  await db.prepare("DELETE FROM site_chunks WHERE domain LIKE ? || '#%'").bind(d).run();
+  const tmp = `${d}#${randomHex(6)}`; // write under a temporary name, switch over at the end (all or nothing)
+  // Pieces are stored as TEXT: binding bytes to D1 is far more expensive and hit the free CPU limit.
+  const reader = body.getReader(), dec = new TextDecoder();
+  let buf = '', n = 0, total = 0, first = '';
+  const flush = async part => {
+    if (n === 0) first = part;
+    await db.prepare('INSERT INTO site_chunks (domain, idx, data) VALUES (?, ?, ?)').bind(tmp, n++, part).run();
+  };
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (value) {
+        total += value.length;
+        if (total > MAX_SITE) throw Object.assign(new Error('too_big'), { tooBig: true });
+        buf += dec.decode(value, { stream: true });
+      }
+      if (done) buf += dec.decode();
+      while (buf.length >= CHUNK) { await flush(buf.slice(0, CHUNK)); buf = buf.slice(CHUNK); }
+      if (done) { if (buf.length || n === 0) await flush(buf); break; }
+    }
+  } catch (e) {
+    try { reader.cancel(); } catch { /* ignore */ }
+    await db.prepare('DELETE FROM site_chunks WHERE domain = ?').bind(tmp).run();
+    throw e;
+  }
+  const t = now();
+  if (n === 1) { // small: keep it in the sites row like before
+    await db.batch([
+      db.prepare('DELETE FROM site_chunks WHERE domain IN (?, ?)').bind(d, tmp),
+      db.prepare('UPDATE sites SET title = ?, html = ?, chunks = 0, size = ?, updated_at = ? WHERE domain = ?').bind(title, first, total, t, d),
+    ]);
+  } else {
+    await db.batch([
+      db.prepare('DELETE FROM site_chunks WHERE domain = ?').bind(d),
+      db.prepare('UPDATE site_chunks SET domain = ? WHERE domain = ?').bind(d, tmp),
+      db.prepare("UPDATE sites SET title = ?, html = '', chunks = ?, size = ?, updated_at = ? WHERE domain = ?").bind(title, n, total, t, d),
+    ]);
+  }
+  return total;
+}
+function streamSite(db, d, row) {
+  const enc = new TextEncoder();
+  let i = 0;
+  return new ReadableStream({
+    async pull(ctrl) {
+      if (row.chunks === 0) { ctrl.enqueue(enc.encode(row.html)); ctrl.close(); return; }
+      if (i >= row.chunks) { ctrl.close(); return; }
+      const r = await db.prepare('SELECT data FROM site_chunks WHERE domain = ? AND idx = ?').bind(d, i++).first();
+      if (!r) return;
+      ctrl.enqueue(typeof r.data === 'string' ? enc.encode(r.data) : new Uint8Array(r.data));
+    },
+  });
 }
 
 const RPC = {
@@ -130,10 +232,15 @@ const RPC = {
   },
 
   async mb_site_get(db, a) {
+    // old browsers (before 1.4.0) load sites as JSON; a huge site would blow the Worker's memory that way
     const d = norm(a.p_domain);
-    await db.prepare('UPDATE sites SET views = views + 1 WHERE domain = ?').bind(d).run();
-    const { results } = await db.prepare('SELECT domain, title, html, views, updated_at FROM sites WHERE domain = ?').bind(d).all();
-    return results;
+    const row = await db.prepare('SELECT title, size FROM sites WHERE domain = ?').bind(d).first();
+    if (row && row.size > 4 * 1024 * 1024) {
+      return [{ domain: d, title: row.title, views: 0, updated_at: '',
+        html: `<!doctype html><meta charset="utf-8"><title>${row.title || d}</title><body style="font:18px Segoe UI,sans-serif;display:grid;place-items:center;height:90vh;text-align:center"><div><h1>${d}</h1><p>This site is big. Update Man Browser to open it (⋮ menu → restart when the green update button appears).</p></div>` }];
+    }
+    const site = await readSite(db, d, true);
+    return site ? [site] : [];
   },
 
   async mb_site_register(db, a) {
@@ -156,27 +263,28 @@ const RPC = {
   async mb_site_update(db, a) {
     const html = String(a.p_html ?? '');
     const d = norm(a.p_domain);
-    if (!tokenOk(a.p_token)) { console.log('update refused: bad token', d); return false; }
-    if (html.length > MAX_HTML) { console.log('update refused: too big', d, html.length); return false; }
-    const h = await sha256(a.p_token);
-    const r = await db.prepare('UPDATE sites SET title = ?, html = ?, updated_at = ? WHERE domain = ? AND owner_hash = ?')
-      .bind(String(a.p_title ?? '').slice(0, 120), html, now(), d, h).run();
-    if (r.meta.changes > 0) return true;
-    const row = await db.prepare('SELECT owner_hash FROM sites WHERE domain = ?').bind(d).first();
-    console.log('update refused:', row ? 'not the owner' : 'no such site', JSON.stringify(d), 'html', html.length, 'token', String(a.p_token).length);
-    return false;
+    if (html.length > MAX_HTML) { console.log('update refused: too big for JSON', d, html.length); return false; }
+    const own = await ownsSite(db, d, a.p_token);
+    if (own !== 'ok') { console.log('update refused:', own, JSON.stringify(d)); return false; }
+    await writeSite(db, d, String(a.p_title ?? '').slice(0, 120), html);
+    return true;
   },
 
   async mb_site_delete(db, a) {
     if (!tokenOk(a.p_token)) return false;
-    const r = await db.prepare('DELETE FROM sites WHERE domain = ? AND owner_hash = ?')
-      .bind(norm(a.p_domain), await sha256(a.p_token)).run();
-    return r.meta.changes > 0;
+    const d = norm(a.p_domain);
+    if (await ownsSite(db, d, a.p_token) !== 'ok') return false;
+    await db.batch([
+      db.prepare('DELETE FROM site_chunks WHERE domain = ?').bind(d),
+      db.prepare('DELETE FROM sites WHERE domain = ?').bind(d),
+    ]);
+    return true;
   },
 
   async mb_sites_mine(db, a) {
     if (!tokenOk(a.p_token)) return [];
-    const { results } = await db.prepare('SELECT domain, title, html, views, updated_at FROM sites WHERE owner_hash = ? ORDER BY created_at')
+    // big sites come without html; the editor downloads them with GET /site/<domain>?noview=1
+    const { results } = await db.prepare('SELECT domain, title, CASE WHEN chunks = 0 THEN html END AS html, chunks, size, views, updated_at FROM sites WHERE owner_hash = ? ORDER BY created_at')
       .bind(await sha256(a.p_token)).all();
     return results;
   },
@@ -192,6 +300,42 @@ export default {
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
     const url = new URL(req.url);
     if (url.pathname === '/' && req.method === 'GET') return json({ service: 'manstudio.domain', ok: true });
+
+    // raw site HTML: GET to show it, PUT (owner key in X-Owner-Key) to publish up to 30 MB
+    const sm = /^\/site\/([a-z0-9.-]+)$/.exec(url.pathname);
+    if (sm) {
+      const d = norm(sm[1]);
+      try {
+        if (req.method === 'GET') {
+          const row = await env.DB.prepare('SELECT title, html, chunks, size FROM sites WHERE domain = ?').bind(d).first();
+          if (!row) return json({ error: 'no_site' }, 404);
+          if (!url.searchParams.has('noview')) await env.DB.prepare('UPDATE sites SET views = views + 1 WHERE domain = ?').bind(d).run();
+          return new Response(streamSite(env.DB, d, row), { headers: {
+            'Content-Type': 'text/html; charset=utf-8', 'X-Title': encodeURIComponent(row.title || ''), 'X-Size': String(row.size || 0),
+            'Cache-Control': 'no-store', ...CORS } });
+        }
+        if (req.method === 'PUT') {
+          const len = Number(req.headers.get('content-length') || 0);
+          if (len > MAX_SITE) { console.log('publish refused: too big', d, len); return json({ error: 'too_big', limit: MAX_SITE, size: len }, 413); }
+          const own = await ownsSite(env.DB, d, req.headers.get('X-Owner-Key'));
+          if (own !== 'ok') { console.log('publish refused:', own, d); return json({ error: own }, own === 'no_site' ? 404 : 403); }
+          let title = '';
+          try { title = decodeURIComponent(req.headers.get('X-Title') || ''); } catch { /* keep empty */ }
+          if (!req.body) return json({ error: 'empty' }, 400);
+          try {
+            const size = await streamPublish(env.DB, d, title.slice(0, 120), req.body);
+            return json({ ok: true, size });
+          } catch (e) {
+            if (e && e.tooBig) { console.log('publish refused: too big', d); return json({ error: 'too_big', limit: MAX_SITE }, 413); }
+            throw e;
+          }
+        }
+      } catch (e) {
+        console.log('site error', req.method, d, String(e && e.message));
+        return json({ error: 'server_error' }, 500);
+      }
+      return json({ error: 'not_found' }, 404);
+    }
 
     const m = /^\/rpc\/([a-z_]+)$/.exec(url.pathname);
     if (!m || req.method !== 'POST' || !RPC[m[1]]) return json({ error: 'not_found' }, 404);

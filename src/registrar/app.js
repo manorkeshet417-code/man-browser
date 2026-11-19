@@ -41,7 +41,9 @@ const TEXT = {
     recentTitle: 'Newest free sites', noneRecent: 'Be the first to register a domain!',
     modeBuilder: '✨ Builder', modeCode: '</> Code', publishNow: 'Publish now', saving: 'Publishing…',
     published: 'Published ✓ {n} — your site is live', saveFail: 'No connection to the server. Trying again…',
-    tooBig: 'Your site is {n}. The limit is 1.8 MB. Tip: link to images (https://…) instead of pasting them into the code.',
+    tooBig: 'Your site is {n}. The limit is 30 MB. Tip: link to images (https://…) instead of pasting them into the code.',
+    uploading: 'Uploading {n}…', loading: 'Opening…',
+    bigCode: 'This site is {n}: too big to edit here (it would freeze the page). To change it, use “⬆ Upload .html” with the new file. The preview on the right shows the site.',
     notOwner: 'This browser doesn’t have the owner key for this site. Paste your saved key under “Owner key”.',
     upload: '⬆ Upload .html', uploaded: 'File loaded — publishing…',
     autoNote: 'Changes publish automatically.', toBuilder: 'Switch to the builder? Your code will be replaced with blocks.',
@@ -79,7 +81,9 @@ const TEXT = {
     recentTitle: 'האתרים החינמיים החדשים', noneRecent: 'היו הראשונים לקחת דומיין!',
     modeBuilder: '✨ בנייה בלי קוד', modeCode: '</> קוד', publishNow: 'פרסום עכשיו', saving: 'מפרסם…',
     published: 'פורסם ✓ {n} — האתר באוויר', saveFail: 'אין חיבור לשרת. מנסה שוב…',
-    tooBig: 'האתר שוקל {n}. המקסימום הוא 1.8 MB. טיפ: לקשר לתמונות (https://…) במקום להדביק אותן בתוך הקוד.',
+    tooBig: 'האתר שוקל {n}. המקסימום הוא 30 MB. טיפ: לקשר לתמונות (https://…) במקום להדביק אותן בתוך הקוד.',
+    uploading: 'מעלה {n}…', loading: 'פותח…',
+    bigCode: 'האתר שוקל {n}: גדול מדי לעריכה כאן (הדף היה נתקע). כדי לשנות אותו, משתמשים ב-“⬆ העלאת קובץ ‎.html” עם הקובץ החדש. התצוגה המקדימה מימין מראה את האתר.',
     notOwner: 'בדפדפן הזה אין את מפתח הבעלים של האתר. הדביקו את המפתח השמור תחת “מפתח בעלים”.',
     upload: '⬆ העלאת קובץ ‎.html', uploaded: 'הקובץ נטען — מפרסם…',
     autoNote: 'כל שינוי מתפרסם אוטומטית.', toBuilder: 'לעבור לבנייה בלי קוד? הקוד שלך יוחלף בבלוקים.',
@@ -146,8 +150,9 @@ async function rpc(fn, args) {
   }
   return r.json();
 }
-const MAX_SITE_BYTES = 1800000; // same limit as the server (server/src/index.js MAX_HTML)
-const fmtSize = n => (n >= 1e6 ? (n / 1e6).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1e3)) + ' KB');
+const MAX_SITE_BYTES = 30 * 1024 * 1024; // same limit as the server (server/src/index.js MAX_SITE)
+const byteSize = s => new Blob([s]).size; // real UTF-8 size (Hebrew letters take 2 bytes)
+const fmtSize = n => (n >= 1024 * 1024 ? (n / 1024 / 1024).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB');
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 let toastT;
 function toast(msg) {
@@ -306,7 +311,7 @@ async function loadMine() {
     const row = document.createElement('div');
     row.className = 'site';
     row.innerHTML = `<div class="ic">${esc(s.domain[0].toUpperCase())}</div>
-      <div class="meta"><b>${esc(s.domain)}</b><span>${esc(s.title || '')} · ${esc(t('views', { n: s.views }))}</span></div>
+      <div class="meta"><b>${esc(s.domain)}</b><span>${esc(s.title || '')} · ${esc(t('views', { n: s.views }))}${s.size ? ' · ' + fmtSize(s.size) : ''}</span></div>
       <button class="ghost small" data-a="visit">${esc(t('visit'))}</button>
       <button class="primary small" data-a="edit">${esc(t('edit'))}</button>`;
     row.querySelector('[data-a=visit]').onclick = () => goTo(s.domain);
@@ -320,7 +325,33 @@ async function loadMine() {
 // which made Visit and the address bar do nothing. Instead every change is published automatically.
 let editing = null, mode = 'builder', bstate = null, saveT = null, saving = false, pending = false;
 const codeBox = () => $('#ed-code');
-const preview = () => { $('#ed-preview').srcdoc = codeBox().value; };
+const BIG_CODE = 1024 * 1024; // above this, the code isn't put in the text box
+let bigCode = null, previewUrl = null;
+const getCode = () => (bigCode != null ? bigCode : codeBox().value);
+function setCode(v) {
+  v = String(v || '');
+  const box = codeBox();
+  if (v.length > BIG_CODE) {
+    bigCode = v;
+    box.value = '';
+    box.readOnly = true;
+    box.placeholder = t('bigCode', { n: fmtSize(byteSize(v)) }).replace('{n}', fmtSize(byteSize(v)));
+    box.classList.add('big');
+  } else {
+    bigCode = null;
+    box.readOnly = false;
+    box.placeholder = '';
+    box.classList.remove('big');
+    box.value = v;
+  }
+}
+const preview = () => {
+  // a blob URL is much lighter than srcdoc for big pages
+  if (previewUrl) URL.revokeObjectURL(previewUrl);
+  previewUrl = URL.createObjectURL(new Blob([getCode()], { type: 'text/html;charset=utf-8' })); // Hebrew shows right even without <meta charset>
+  $('#ed-preview').removeAttribute('srcdoc');
+  $('#ed-preview').src = previewUrl;
+};
 let previewT;
 function setStatus(key, cls, n) { const s = $('#ed-status'); s.textContent = t(key, { n }); s.className = 'dim ' + (cls || ''); }
 function setMode(m) {
@@ -331,17 +362,25 @@ function setMode(m) {
   codeBox().hidden = m !== 'code';
 }
 function builderChanged() {
-  codeBox().value = Builder.render(bstate, $('#ed-title').value || (editing && editing.domain));
+  setCode(Builder.render(bstate, $('#ed-title').value || (editing && editing.domain)));
   clearTimeout(previewT); previewT = setTimeout(preview, 150);
   scheduleSave();
 }
-function openEditor(s) {
+async function openEditor(s) {
   if (!s) return;
+  if (s.html == null) { // big site: download it first
+    setStatus('loading');
+    try {
+      const r = await fetch(`${API}/site/${encodeURIComponent(s.domain)}?noview=1`, { cache: 'no-store' });
+      if (!r.ok) throw new Error('http ' + r.status);
+      s.html = await r.text();
+    } catch { toast(t('error')); return; }
+  }
   editing = s;
   $('#editor').hidden = false;
   $('#ed-domain').textContent = s.domain;
   $('#ed-title').value = s.title || '';
-  codeBox().value = s.html || '';
+  setCode(s.html || '');
   $('#ed-template').value = '';
   setStatus('autoNote');
   bstate = Builder.parse(s.html);
@@ -354,23 +393,39 @@ function scheduleSave() {
   if (!editing) return;
   setStatus('saving');
   clearTimeout(saveT);
-  saveT = setTimeout(save, 800);
+  saveT = setTimeout(save, getCode().length > 2e6 ? 3000 : 800);
+}
+async function publish(domain, title, html, keepalive) {
+  const r = await fetch(`${API}/site/${encodeURIComponent(domain)}`, {
+    method: 'PUT', keepalive: !!keepalive,
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'X-Owner-Key': ownerKey, 'X-Title': encodeURIComponent(title) },
+    body: html,
+  });
+  let res = {};
+  try { res = await r.json(); } catch { /* not JSON */ }
+  if (r.ok && res.ok) return res;
+  const err = new Error(res.error || 'http_' + r.status);
+  err.code = res.error || 'http_' + r.status;
+  throw err;
 }
 async function save() {
   if (!editing) return;
   clearTimeout(saveT);
   if (saving) { pending = true; return; }
   saving = true;
-  const title = $('#ed-title').value, html = codeBox().value;
+  const title = $('#ed-title').value, html = getCode();
+  const size = byteSize(html);
   // too big: say so (and how big) instead of retrying forever
-  if (html.length > MAX_SITE_BYTES) { setStatus('tooBig', 'bad', fmtSize(html.length)); saving = false; return; }
+  if (size > MAX_SITE_BYTES) { setStatus('tooBig', 'bad', fmtSize(size)); saving = false; return; }
+  if (size > 2e6) setStatus('uploading', '', fmtSize(size));
   try {
-    const ok = await rpc('mb_site_update', { p_domain: editing.domain, p_token: ownerKey, p_title: title, p_html: html });
-    if (!ok) { setStatus('notOwner', 'bad'); return; } // wrong owner key: retrying won't help
-    editing.title = title; editing.html = html;
-    setStatus('published', 'ok', new Date().toLocaleTimeString(lang === 'he' ? 'he-IL' : 'en-US', { hour: '2-digit', minute: '2-digit' }) + ' · ' + fmtSize(html.length));
+    await publish(editing.domain, title, html);
+    editing.title = title; editing.html = html; editing.size = size;
+    setStatus('published', 'ok', new Date().toLocaleTimeString(lang === 'he' ? 'he-IL' : 'en-US', { hour: '2-digit', minute: '2-digit' }) + ' · ' + fmtSize(size));
   } catch (e) {
-    if (e && e.code === 'too_big') { setStatus('tooBig', 'bad', fmtSize(html.length)); return; }
+    const code = e && e.code;
+    if (code === 'too_big') { setStatus('tooBig', 'bad', fmtSize(size)); return; }
+    if (code === 'not_owner' || code === 'bad_token' || code === 'no_site') { setStatus('notOwner', 'bad'); return; } // retrying won't help
     setStatus('saveFail', 'bad');
     saveT = setTimeout(save, 5000); // network problem: try again
   } finally {
@@ -381,7 +436,7 @@ async function save() {
 $('#mode-builder').onclick = () => {
   if (mode === 'builder' || !editing) return;
   if (!bstate) {
-    if (codeBox().value.trim() && !confirm(t('toBuilder'))) return;
+    if (getCode().trim() && !confirm(t('toBuilder'))) return;
     bstate = Builder.template('personal', $('#ed-title').value, editing.domain);
   }
   setMode('builder');
@@ -396,11 +451,11 @@ $('#ed-file').addEventListener('change', async e => {
   e.target.value = '';
   if (!f || !editing) return;
   const text = await f.text();
-  if (codeBox().value.trim() && !confirm(t('confirmTpl'))) return;
+  if (getCode().trim() && !confirm(t('confirmTpl'))) return;
   bstate = Builder.parse(text);
   if (bstate) { setMode('builder'); Builder.mount($('#ed-builder'), bstate, builderChanged, t); }
   else setMode('code');
-  codeBox().value = text;
+  setCode(text);
   if (!$('#ed-title').value.trim()) {
     const m = /<title>([^<]*)<\/title>/i.exec(text);
     if (m) $('#ed-title').value = m[1].trim().slice(0, 120);
@@ -436,7 +491,7 @@ $('#ed-template').addEventListener('change', e => {
     builderChanged();
   } else {
     bstate = null;
-    codeBox().value = TEMPLATES[k](editing.domain, $('#ed-title').value || editing.domain);
+    setCode(TEMPLATES[k](editing.domain, $('#ed-title').value || editing.domain));
     preview(); scheduleSave();
   }
   e.target.value = '';
@@ -447,9 +502,9 @@ $('#ed-save').onclick = save;
 window.addEventListener('pagehide', () => {
   if (!editing || !saveT) return;
   clearTimeout(saveT); saveT = null;
-  const body = JSON.stringify({ p_domain: editing.domain, p_token: ownerKey, p_title: $('#ed-title').value, p_html: codeBox().value });
-  if (body.length > 63000) return;
-  try { fetch(`${API}/rpc/mb_site_update`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: true }); } catch { /* ignore */ }
+  const html = getCode();
+  if (html.length > 63000 || byteSize(html) > 63000) return;
+  try { publish(editing.domain, $('#ed-title').value, html, true).catch(() => {}); } catch { /* ignore */ }
 });
 $('#ed-visit').onclick = async () => { if (!editing) return; await save(); goTo(editing.domain); };
 $('#ed-close').onclick = async () => { await save(); $('#editor').hidden = true; editing = null; loadMine(); };

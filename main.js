@@ -77,12 +77,10 @@ async function manHandler(req) {
   }
   if (host.endsWith('.domain')) return html(infoPage(host, 'This address is reserved.', { href: `man://${REGISTRAR}/`, label: REGISTRAR }), 404);
   try {
-    const r = await net.fetch(`${DOMAINS_API}/rpc/mb_site_get`, {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ p_domain: host }),
-    });
-    const rows = await r.json();
-    if (Array.isArray(rows) && rows.length) return html(rows[0].html || '<!doctype html><title></title>');
+    // streamed straight through: sites can be up to 30 MB
+    const r = await net.fetch(`${DOMAINS_API}/site/${encodeURIComponent(host)}`, { cache: 'no-store' });
+    if (r.ok) return new Response(r.body, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } });
+    if (r.status !== 404) throw new Error('status ' + r.status);
     return html(infoPage(host, 'This domain is free! Grab it at manstudio.domain.', { href: `man://${REGISTRAR}/?d=${encodeURIComponent(host)}`, label: 'Get this domain' }), 404);
   } catch {
     return html(infoPage(host, 'Could not reach the Man Studio domain service. Check your internet connection.'), 502);
