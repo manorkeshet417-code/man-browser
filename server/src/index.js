@@ -6,7 +6,8 @@ const DOMAIN_RE = /^[a-z0-9]([a-z0-9-]{0,40}[a-z0-9])?\.(fun|com|net|org|io|app|
 const DEV_ONLY_TLDS = new Set(['man']); // only Man Studio (role 'dev') may register these
 const RESERVED = new Set(['manstudio', 'man-studio', 'www', 'admin', 'support', 'official']);
 const MAX_PER_OWNER = 10;
-const MAX_HTML = 300000;
+const MAX_HTML = 1800000;       // ~1.8 MB per site (D1 rows can hold up to 2 MB)
+const MAX_BODY = 4 * 1024 * 1024; // the JSON request can be bigger than the HTML (escaped quotes/newlines)
 
 // accounts
 const PBKDF2_ITERATIONS = 100000;
@@ -154,10 +155,16 @@ const RPC = {
 
   async mb_site_update(db, a) {
     const html = String(a.p_html ?? '');
-    if (!tokenOk(a.p_token) || html.length > MAX_HTML) return false;
+    const d = norm(a.p_domain);
+    if (!tokenOk(a.p_token)) { console.log('update refused: bad token', d); return false; }
+    if (html.length > MAX_HTML) { console.log('update refused: too big', d, html.length); return false; }
+    const h = await sha256(a.p_token);
     const r = await db.prepare('UPDATE sites SET title = ?, html = ?, updated_at = ? WHERE domain = ? AND owner_hash = ?')
-      .bind(String(a.p_title ?? '').slice(0, 120), html, now(), norm(a.p_domain), await sha256(a.p_token)).run();
-    return r.meta.changes > 0;
+      .bind(String(a.p_title ?? '').slice(0, 120), html, now(), d, h).run();
+    if (r.meta.changes > 0) return true;
+    const row = await db.prepare('SELECT owner_hash FROM sites WHERE domain = ?').bind(d).first();
+    console.log('update refused:', row ? 'not the owner' : 'no such site', JSON.stringify(d), 'html', html.length, 'token', String(a.p_token).length);
+    return false;
   },
 
   async mb_site_delete(db, a) {
@@ -188,14 +195,16 @@ export default {
 
     const m = /^\/rpc\/([a-z_]+)$/.exec(url.pathname);
     if (!m || req.method !== 'POST' || !RPC[m[1]]) return json({ error: 'not_found' }, 404);
-    if (Number(req.headers.get('content-length') || 0) > MAX_HTML + 20000) return json({ error: 'too_big' }, 413);
+    const size = Number(req.headers.get('content-length') || 0);
+    if (size > MAX_BODY) { console.log('rejected: request too big', m[1], size); return json({ error: 'too_big', limit: MAX_HTML }, 413); }
 
     let args = {};
-    try { args = await req.json(); } catch { return json({ error: 'bad_json' }, 400); }
+    try { args = await req.json(); } catch { console.log('rejected: bad json', m[1], size); return json({ error: 'bad_json' }, 400); }
     if (!args || typeof args !== 'object') args = {};
     try {
       return json(await RPC[m[1]](env.DB, args));
     } catch (e) {
+      console.log('server error', m[1], String(e && e.message));
       return json({ error: 'server_error' }, 500);
     }
   },

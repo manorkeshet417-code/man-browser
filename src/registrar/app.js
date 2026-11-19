@@ -40,7 +40,10 @@ const TEXT = {
     tplBlank: 'Template: blank', tplPersonal: 'Template: personal page', tplGame: 'Template: game studio', tplLinks: 'Template: link list',
     recentTitle: 'Newest free sites', noneRecent: 'Be the first to register a domain!',
     modeBuilder: '✨ Builder', modeCode: '</> Code', publishNow: 'Publish now', saving: 'Publishing…',
-    published: 'Published ✓ {n} — your site is live', saveFail: 'Couldn’t publish. Trying again…',
+    published: 'Published ✓ {n} — your site is live', saveFail: 'No connection to the server. Trying again…',
+    tooBig: 'Your site is {n}. The limit is 1.8 MB. Tip: link to images (https://…) instead of pasting them into the code.',
+    notOwner: 'This browser doesn’t have the owner key for this site. Paste your saved key under “Owner key”.',
+    upload: '⬆ Upload .html', uploaded: 'File loaded — publishing…',
     autoNote: 'Changes publish automatically.', toBuilder: 'Switch to the builder? Your code will be replaced with blocks.',
     look: 'Look', addBlock: 'Add a block', noBlocks: 'No blocks yet. Add one below.',
     moveUp: 'Move up', moveDown: 'Move down', removeBlock: 'Remove',
@@ -75,7 +78,10 @@ const TEXT = {
     tplBlank: 'תבנית: ריקה', tplPersonal: 'תבנית: דף אישי', tplGame: 'תבנית: סטודיו משחקים', tplLinks: 'תבנית: רשימת קישורים',
     recentTitle: 'האתרים החינמיים החדשים', noneRecent: 'היו הראשונים לקחת דומיין!',
     modeBuilder: '✨ בנייה בלי קוד', modeCode: '</> קוד', publishNow: 'פרסום עכשיו', saving: 'מפרסם…',
-    published: 'פורסם ✓ {n} — האתר באוויר', saveFail: 'הפרסום נכשל. מנסה שוב…',
+    published: 'פורסם ✓ {n} — האתר באוויר', saveFail: 'אין חיבור לשרת. מנסה שוב…',
+    tooBig: 'האתר שוקל {n}. המקסימום הוא 1.8 MB. טיפ: לקשר לתמונות (https://…) במקום להדביק אותן בתוך הקוד.',
+    notOwner: 'בדפדפן הזה אין את מפתח הבעלים של האתר. הדביקו את המפתח השמור תחת “מפתח בעלים”.',
+    upload: '⬆ העלאת קובץ ‎.html', uploaded: 'הקובץ נטען — מפרסם…',
     autoNote: 'כל שינוי מתפרסם אוטומטית.', toBuilder: 'לעבור לבנייה בלי קוד? הקוד שלך יוחלף בבלוקים.',
     look: 'עיצוב', addBlock: 'הוספת בלוק', noBlocks: 'עוד אין בלוקים. הוסיפו אחד למטה.',
     moveUp: 'למעלה', moveDown: 'למטה', removeBlock: 'מחיקה',
@@ -132,9 +138,16 @@ async function rpc(fn, args) {
   const r = await fetch(`${API}/rpc/${fn}`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(args || {}),
   });
-  if (!r.ok) throw new Error(await r.text());
+  if (!r.ok) {
+    let code = 'http_' + r.status;
+    try { code = (await r.json()).error || code; } catch { /* not JSON */ }
+    const err = new Error(code); err.code = code; err.status = r.status;
+    throw err;
+  }
   return r.json();
 }
+const MAX_SITE_BYTES = 1800000; // same limit as the server (server/src/index.js MAX_HTML)
+const fmtSize = n => (n >= 1e6 ? (n / 1e6).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1e3)) + ' KB');
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 let toastT;
 function toast(msg) {
@@ -349,14 +362,17 @@ async function save() {
   if (saving) { pending = true; return; }
   saving = true;
   const title = $('#ed-title').value, html = codeBox().value;
+  // too big: say so (and how big) instead of retrying forever
+  if (html.length > MAX_SITE_BYTES) { setStatus('tooBig', 'bad', fmtSize(html.length)); saving = false; return; }
   try {
     const ok = await rpc('mb_site_update', { p_domain: editing.domain, p_token: ownerKey, p_title: title, p_html: html });
-    if (!ok) throw new Error('denied');
+    if (!ok) { setStatus('notOwner', 'bad'); return; } // wrong owner key: retrying won't help
     editing.title = title; editing.html = html;
-    setStatus('published', 'ok', new Date().toLocaleTimeString(lang === 'he' ? 'he-IL' : 'en-US', { hour: '2-digit', minute: '2-digit' }));
-  } catch {
+    setStatus('published', 'ok', new Date().toLocaleTimeString(lang === 'he' ? 'he-IL' : 'en-US', { hour: '2-digit', minute: '2-digit' }) + ' · ' + fmtSize(html.length));
+  } catch (e) {
+    if (e && e.code === 'too_big') { setStatus('tooBig', 'bad', fmtSize(html.length)); return; }
     setStatus('saveFail', 'bad');
-    saveT = setTimeout(save, 5000); // try again
+    saveT = setTimeout(save, 5000); // network problem: try again
   } finally {
     saving = false;
     if (pending) { pending = false; save(); }
@@ -373,6 +389,26 @@ $('#mode-builder').onclick = () => {
   builderChanged();
 };
 $('#mode-code').onclick = () => { if (editing) setMode('code'); };
+// Upload an .html file: it replaces the code and publishes
+$('#ed-upload').onclick = () => $('#ed-file').click();
+$('#ed-file').addEventListener('change', async e => {
+  const f = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if (!f || !editing) return;
+  const text = await f.text();
+  if (codeBox().value.trim() && !confirm(t('confirmTpl'))) return;
+  bstate = Builder.parse(text);
+  if (bstate) { setMode('builder'); Builder.mount($('#ed-builder'), bstate, builderChanged, t); }
+  else setMode('code');
+  codeBox().value = text;
+  if (!$('#ed-title').value.trim()) {
+    const m = /<title>([^<]*)<\/title>/i.exec(text);
+    if (m) $('#ed-title').value = m[1].trim().slice(0, 120);
+  }
+  preview();
+  setStatus('uploaded');
+  save();
+});
 codeBox().addEventListener('input', () => {
   // hand-edited code no longer matches the blocks: drop the builder data so the code wins next time
   if (bstate || /<!--msb:/.test(codeBox().value)) {

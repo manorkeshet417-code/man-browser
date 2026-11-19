@@ -3,6 +3,18 @@
    To add a release: put a new entry at the TOP of CHANGELOG and bump "version" in package.json. */
 const CHANGELOG = [
   {
+    version: '1.3.1',
+    date: '2026-11-19',
+    items: [
+      { icon: '📦', en: ['Bigger sites', 'Sites can now be up to 1.8 MB (was 0.3 MB), so bigger code publishes too.'],
+        he: ['אתרים גדולים יותר', 'אתר יכול להיות עכשיו עד 1.8 MB (במקום 0.3 MB), כך שגם קוד גדול מתפרסם.'] },
+      { icon: '⬆', en: ['Upload an .html file', 'In the site editor, “Upload .html” puts a file from your computer on your site in one click.'],
+        he: ['העלאת קובץ ‎.html', 'בעורך האתר, "העלאת קובץ ‎.html" מעלה קובץ מהמחשב לאתר בלחיצה אחת.'] },
+      { icon: '💬', en: ['Clear messages', 'If a site can’t be published, the editor now says why (for example, how big it is) instead of retrying forever.'],
+        he: ['הודעות ברורות', 'אם אי אפשר לפרסם אתר, העורך אומר עכשיו למה (למשל כמה הוא שוקל) במקום לנסות שוב בלי סוף.'] },
+    ],
+  },
+  {
     version: '1.3.0',
     date: '2026-11-19',
     items: [
