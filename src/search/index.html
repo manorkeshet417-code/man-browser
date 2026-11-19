@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Man Search</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header id="top">
+    <a class="brand" href="/"><span class="logo">✦</span><b>Man</b><span>Search</span></a>
+    <form id="form" class="box">
+      <span class="ic">⌕</span>
+      <input id="q" autocomplete="off" spellcheck="false" autofocus>
+      <button id="go" class="primary" type="submit"></button>
+    </form>
+  </header>
+
+  <main id="results" hidden>
+    <section id="sec-sites">
+      <h2 id="h-sites"></h2>
+      <div id="sites"></div>
+    </section>
+    <section id="sec-wiki">
+      <h2 id="h-wiki"></h2>
+      <div id="wiki"></div>
+    </section>
+    <section id="sec-web">
+      <h2 id="h-web"></h2>
+      <div id="web" class="web"></div>
+    </section>
+  </main>
+
+  <section id="home">
+    <p id="tagline" class="dim"></p>
+  </section>
+
+  <footer class="dim" id="foot"></footer>
+  <script src="/app.js"></script>
+</body>
+</html>

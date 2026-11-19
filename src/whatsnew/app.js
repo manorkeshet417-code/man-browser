@@ -3,6 +3,16 @@
    To add a release: put a new entry at the TOP of CHANGELOG and bump "version" in package.json. */
 const CHANGELOG = [
   {
+    version: '1.5.0',
+    date: '2026-11-19',
+    items: [
+      { icon: '📄', en: ['Sites with many pages', 'In the site editor, “+ Add page” makes pages like /about or /games. Link to them with /about. A site can have up to 50 pages.'],
+        he: ['אתרים עם הרבה דפים', 'בעורך האתר, "+ הוספת דף" יוצר דפים כמו ‎/about או ‎/games. מקשרים אליהם עם ‎/about. לאתר יכולים להיות עד 50 דפים.'] },
+      { icon: '🔎', en: ['Man Search', 'Search all the free sites made in Man Browser, plus Wikipedia, at search.domain. Make it your search engine in Settings → Search engine.'],
+        he: ['Man Search', 'חיפוש בכל האתרים החינמיים שנבנו ב-Man Browser, וגם בוויקיפדיה, ב-search.domain. אפשר להפוך אותו למנוע החיפוש בהגדרות ← מנוע חיפוש.'] },
+    ],
+  },
+  {
     version: '1.4.1',
     date: '2026-11-19',
     items: [

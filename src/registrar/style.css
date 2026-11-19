@@ -83,6 +83,11 @@ footer { max-width: 1060px; margin: 10px auto 40px; padding: 0 24px; font-size: 
 .modes { display: flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--soft); flex: none; }
 .modes button { height: 36px; padding: 0 14px; border-radius: 9px; background: transparent; color: var(--dim); }
 .modes button.on { background: var(--card); color: var(--text); box-shadow: var(--shadow); }
+.pages-row { flex-wrap: wrap; }
+.pages-row select { min-width: 170px; max-width: 260px; }
+.pages-row #ed-newpage { flex: 1 1 160px; min-width: 140px; direction: ltr; }
+.pages-row button { flex: none; }
+#ed-delpage:disabled { opacity: .35; cursor: default; }
 #ed-code.big { background: var(--soft); cursor: default; }
 #ed-code.big::placeholder { color: var(--text); font: 15px/1.6 "Segoe UI", system-ui, sans-serif; white-space: pre-wrap; opacity: .9; }
 #ed-status.ok { color: var(--ok); }

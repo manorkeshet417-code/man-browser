@@ -9,7 +9,9 @@ const MAX_PER_OWNER = 10;
 const MAX_HTML = 1800000;           // old JSON API (mb_site_update): up to ~1.8 MB
 const MAX_BODY = 4 * 1024 * 1024;   // JSON requests
 const MAX_SITE = 30 * 1024 * 1024;  // a site can be up to 30 MB of UTF-8 (raw PUT /site/<domain>)
-const CHUNK = 900000;               // chars per row for the old JSON path (writeSite)
+const CHUNK = 900000;               // chars per stored piece (D1 rows hold up to 2 MB)
+const MAX_PAGES = 50;               // extra pages per site (besides the home page)
+const INDEX_CHARS = 200000;         // how much of each page the search index reads
 
 // accounts
 const PBKDF2_ITERATIONS = 100000;
@@ -19,7 +21,7 @@ const LOCK_MINUTES = 15;
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, GET, PUT, OPTIONS',
+  'Access-Control-Allow-Methods': 'POST, GET, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, apikey, X-Owner-Key, X-Title',
   'Access-Control-Expose-Headers': 'X-Title, X-Size',
   'Access-Control-Max-Age': '86400',
@@ -118,12 +120,13 @@ async function ownsSite(db, d, token) {
   return row.owner_hash === await sha256(token) ? 'ok' : 'not_owner';
 }
 
-/* Big sites are streamed piece by piece: a free Worker has 128 MB of memory, so a 30 MB page
-   must never be held in memory as a whole (it failed at 29 MB when it was). */
-async function streamPublish(db, d, title, body) {
-  // leftovers from an upload that died half way
-  await db.prepare("DELETE FROM site_chunks WHERE domain LIKE ? || '#%'").bind(d).run();
-  const tmp = `${d}#${randomHex(6)}`; // write under a temporary name, switch over at the end (all or nothing)
+/* Big pages are streamed piece by piece: a free Worker has 128 MB of memory, so a 30 MB page
+   must never be held in memory as a whole (it failed at 29 MB when it was).
+   Storage key of a page's pieces: "<domain>" for the home page, "<domain>/<path>" for other pages. */
+const pieceKey = (d, path) => (path ? `${d}/${path}` : d);
+async function streamToPieces(db, key, body) {
+  await db.prepare("DELETE FROM site_chunks WHERE domain LIKE ? || '#%'").bind(key).run(); // leftovers of a dead upload
+  const tmp = `${key}#${randomHex(6)}`; // written under a temporary name, switched over at the end (all or nothing)
   // Pieces are stored as TEXT: binding bytes to D1 is far more expensive and hit the free CPU limit.
   const reader = body.getReader(), dec = new TextDecoder();
   let buf = '', n = 0, total = 0, first = '';
@@ -148,29 +151,81 @@ async function streamPublish(db, d, title, body) {
     await db.prepare('DELETE FROM site_chunks WHERE domain = ?').bind(tmp).run();
     throw e;
   }
-  const t = now();
-  if (n === 1) { // small: keep it in the sites row like before
-    await db.batch([
-      db.prepare('DELETE FROM site_chunks WHERE domain IN (?, ?)').bind(d, tmp),
-      db.prepare('UPDATE sites SET title = ?, html = ?, chunks = 0, size = ?, updated_at = ? WHERE domain = ?').bind(title, first, total, t, d),
-    ]);
-  } else {
-    await db.batch([
-      db.prepare('DELETE FROM site_chunks WHERE domain = ?').bind(d),
-      db.prepare('UPDATE site_chunks SET domain = ? WHERE domain = ?').bind(d, tmp),
-      db.prepare("UPDATE sites SET title = ?, html = '', chunks = ?, size = ?, updated_at = ? WHERE domain = ?").bind(title, n, total, t, d),
-    ]);
-  }
-  return total;
+  return { key, tmp, n, total, first };
 }
-function streamSite(db, d, row) {
+async function commitPieces(db, d, path, title, up) {
+  const t = now(), small = up.n === 1;
+  const stmts = small
+    ? [db.prepare('DELETE FROM site_chunks WHERE domain IN (?, ?)').bind(up.key, up.tmp)]
+    : [db.prepare('DELETE FROM site_chunks WHERE domain = ?').bind(up.key),
+      db.prepare('UPDATE site_chunks SET domain = ? WHERE domain = ?').bind(up.key, up.tmp)];
+  if (!path) {
+    stmts.push(db.prepare('UPDATE sites SET title = ?, html = ?, chunks = ?, size = ?, updated_at = ? WHERE domain = ?')
+      .bind(title, small ? up.first : '', small ? 0 : up.n, up.total, t, d));
+  } else {
+    stmts.push(db.prepare(`INSERT INTO pages (domain, path, title, html, chunks, size, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT (domain, path) DO UPDATE SET title = excluded.title, html = excluded.html, chunks = excluded.chunks,
+      size = excluded.size, updated_at = excluded.updated_at`)
+      .bind(d, path, title, small ? up.first : '', small ? 0 : up.n, up.total, t));
+    stmts.push(db.prepare('UPDATE sites SET updated_at = ? WHERE domain = ?').bind(t, d));
+  }
+  await db.batch(stmts);
+  await indexPage(db, d, path, title, up.first);
+}
+// how big the whole site is (home page + extra pages), leaving out one page that is about to be replaced
+async function siteBytes(db, d, exceptPath) {
+  const home = await db.prepare('SELECT size FROM sites WHERE domain = ?').bind(d).first();
+  const pages = await db.prepare('SELECT COALESCE(SUM(size), 0) AS n FROM pages WHERE domain = ? AND path <> ?').bind(d, exceptPath ?? '').first();
+  return (exceptPath === '' ? 0 : (home ? home.size : 0)) + pages.n;
+}
+// "/About/" → "about", "index.html" → "" (home page). null = not allowed.
+function normPath(raw) {
+  let p;
+  try { p = decodeURIComponent(String(raw ?? '')); } catch { return null; }
+  p = p.split(/[?#]/)[0].toLowerCase().replace(/\/{2,}/g, '/').replace(/^\/+|\/+$/g, '');
+  if (p === '' || p === 'index.html' || p === 'index.htm') return '';
+  if (p.length > 80 || !/^[a-z0-9._\-/]+$/.test(p) || p.split('/').some(x => x === '' || x === '.' || x === '..')) return null;
+  return p;
+}
+
+/* ---------- search index (Man Search): text of every page, FTS5 ---------- */
+function pageText(html) {
+  return String(html || '').slice(0, INDEX_CHARS)
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/<(script|style|svg|noscript)[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<(script|style|svg|noscript)\b[\s\S]*$/i, ' ') // one still open where the indexed part ends
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/\s+/g, ' ').trim().slice(0, 20000);
+}
+async function indexPage(db, d, path, title, html) {
+  const t = title || ((/<title>([^<]*)<\/title>/i.exec(String(html || '').slice(0, 5000)) || [])[1] || '').trim();
+  const name = `${d} ${d.replace(/[.-]/g, ' ')} ${path.replace(/[/._-]/g, ' ')}`;
+  await db.batch([
+    db.prepare('DELETE FROM search_idx WHERE domain = ? AND path = ?').bind(d, path),
+    db.prepare('INSERT INTO search_idx (domain, path, name, title, body) VALUES (?, ?, ?, ?, ?)').bind(d, path, name, t.slice(0, 200), pageText(html)),
+  ]);
+}
+async function search(db, q) {
+  const words = String(q || '').toLowerCase().match(/[\p{L}\p{N}]+/gu) || [];
+  if (!words.length) return [];
+  const terms = words.slice(0, 8).map(w => `"${w}"*`);
+  const sql = `SELECT domain, path, title, snippet(search_idx, 4, '[[', ']]', '…', 16) AS snippet
+    FROM search_idx WHERE search_idx MATCH ? ORDER BY bm25(search_idx, 0, 0, 6.0, 4.0, 1.0) LIMIT 30`;
+  // every word first; if nothing has them all, any of the words
+  let { results } = await db.prepare(sql).bind(terms.join(' ')).all();
+  if (!results.length && terms.length > 1) ({ results } = await db.prepare(sql).bind(terms.join(' OR ')).all());
+  return results;
+}
+
+function streamSite(db, key, row) {
   const enc = new TextEncoder();
   let i = 0;
   return new ReadableStream({
     async pull(ctrl) {
       if (row.chunks === 0) { ctrl.enqueue(enc.encode(row.html)); ctrl.close(); return; }
       if (i >= row.chunks) { ctrl.close(); return; }
-      const r = await db.prepare('SELECT data FROM site_chunks WHERE domain = ? AND idx = ?').bind(d, i++).first();
+      const r = await db.prepare('SELECT data FROM site_chunks WHERE domain = ? AND idx = ?').bind(key, i++).first();
       if (!r) return;
       ctrl.enqueue(typeof r.data === 'string' ? enc.encode(r.data) : new Uint8Array(r.data));
     },
@@ -257,6 +312,7 @@ const RPC = {
       await db.prepare('INSERT INTO sites (domain, title, html, owner_hash, views, created_at, updated_at) VALUES (?, ?, ?, ?, 0, ?, ?)')
         .bind(d, String(a.p_title ?? '').slice(0, 120), html, h, now(), now()).run();
     } catch { return 'taken'; }
+    await indexPage(db, d, '', String(a.p_title ?? ''), html);
     return 'ok';
   },
 
@@ -267,6 +323,7 @@ const RPC = {
     const own = await ownsSite(db, d, a.p_token);
     if (own !== 'ok') { console.log('update refused:', own, JSON.stringify(d)); return false; }
     await writeSite(db, d, String(a.p_title ?? '').slice(0, 120), html);
+    await indexPage(db, d, '', String(a.p_title ?? ''), html);
     return true;
   },
 
@@ -275,7 +332,9 @@ const RPC = {
     const d = norm(a.p_domain);
     if (await ownsSite(db, d, a.p_token) !== 'ok') return false;
     await db.batch([
-      db.prepare('DELETE FROM site_chunks WHERE domain = ?').bind(d),
+      db.prepare("DELETE FROM site_chunks WHERE domain = ? OR domain LIKE ? || '/%' OR domain LIKE ? || '#%'").bind(d, d, d),
+      db.prepare('DELETE FROM pages WHERE domain = ?').bind(d),
+      db.prepare('DELETE FROM search_idx WHERE domain = ?').bind(d),
       db.prepare('DELETE FROM sites WHERE domain = ?').bind(d),
     ]);
     return true;
@@ -301,37 +360,84 @@ export default {
     const url = new URL(req.url);
     if (url.pathname === '/' && req.method === 'GET') return json({ service: 'manstudio.domain', ok: true });
 
-    // raw site HTML: GET to show it, PUT (owner key in X-Owner-Key) to publish up to 30 MB
-    const sm = /^\/site\/([a-z0-9.-]+)$/.exec(url.pathname);
+    // Man Search over every free site
+    if (url.pathname === '/search' && req.method === 'GET') {
+      try { return json(await search(env.DB, url.searchParams.get('q'))); }
+      catch (e) { console.log('search error', String(e && e.message)); return json([]); }
+    }
+
+    // list of a site's pages ('' = home page)
+    const lm = /^\/pages\/([a-z0-9.-]+)$/.exec(url.pathname);
+    if (lm && req.method === 'GET') {
+      const d = norm(lm[1]);
+      const home = await env.DB.prepare('SELECT size, updated_at FROM sites WHERE domain = ?').bind(d).first();
+      if (!home) return json({ error: 'no_site' }, 404);
+      const { results } = await env.DB.prepare('SELECT path, title, size, updated_at FROM pages WHERE domain = ? ORDER BY path').bind(d).all();
+      return json([{ path: '', size: home.size, updated_at: home.updated_at }, ...results]);
+    }
+
+    // raw page HTML: GET shows it, PUT publishes it (owner key in X-Owner-Key), DELETE removes an extra page.
+    // /site/<domain> is the home page, /site/<domain>/<path> any other page (a site is up to 30 MB in total).
+    const sm = /^\/site\/([a-z0-9.-]+)(?:\/(.*))?$/.exec(url.pathname);
     if (sm) {
       const d = norm(sm[1]);
+      const path = normPath(sm[2] || '');
+      if (path === null) return json({ error: 'bad_path' }, 400);
       try {
         if (req.method === 'GET') {
-          const row = await env.DB.prepare('SELECT title, html, chunks, size FROM sites WHERE domain = ?').bind(d).first();
-          if (!row) return json({ error: 'no_site' }, 404);
+          let row, key = d, found = path;
+          if (!path) row = await env.DB.prepare('SELECT title, html, chunks, size FROM sites WHERE domain = ?').bind(d).first();
+          else {
+            for (const p of [path, path + '.html', path + '/index.html']) {
+              row = await env.DB.prepare('SELECT title, html, chunks, size FROM pages WHERE domain = ? AND path = ?').bind(d, p).first();
+              if (row) { found = p; key = pieceKey(d, p); break; }
+            }
+          }
+          if (!row) {
+            const exists = path && await env.DB.prepare('SELECT 1 FROM sites WHERE domain = ?').bind(d).first();
+            return json({ error: exists ? 'no_page' : 'no_site' }, 404);
+          }
           if (!url.searchParams.has('noview')) await env.DB.prepare('UPDATE sites SET views = views + 1 WHERE domain = ?').bind(d).run();
-          return new Response(streamSite(env.DB, d, row), { headers: {
+          return new Response(streamSite(env.DB, key, row), { headers: {
             'Content-Type': 'text/html; charset=utf-8', 'X-Title': encodeURIComponent(row.title || ''), 'X-Size': String(row.size || 0),
-            'Cache-Control': 'no-store', ...CORS } });
+            'X-Path': found, 'Cache-Control': 'no-store', ...CORS } });
         }
-        if (req.method === 'PUT') {
-          const len = Number(req.headers.get('content-length') || 0);
-          if (len > MAX_SITE) { console.log('publish refused: too big', d, len); return json({ error: 'too_big', limit: MAX_SITE, size: len }, 413); }
+        if (req.method === 'PUT' || req.method === 'DELETE') {
           const own = await ownsSite(env.DB, d, req.headers.get('X-Owner-Key'));
-          if (own !== 'ok') { console.log('publish refused:', own, d); return json({ error: own }, own === 'no_site' ? 404 : 403); }
+          if (own !== 'ok') { console.log(req.method, 'refused:', own, d, path); return json({ error: own }, own === 'no_site' ? 404 : 403); }
+          if (req.method === 'DELETE') {
+            if (!path) return json({ error: 'cant_delete_home' }, 400);
+            await env.DB.batch([
+              env.DB.prepare("DELETE FROM site_chunks WHERE domain = ? OR domain LIKE ? || '#%'").bind(pieceKey(d, path), pieceKey(d, path)),
+              env.DB.prepare('DELETE FROM pages WHERE domain = ? AND path = ?').bind(d, path),
+              env.DB.prepare('DELETE FROM search_idx WHERE domain = ? AND path = ?').bind(d, path),
+            ]);
+            return json({ ok: true });
+          }
+          const len = Number(req.headers.get('content-length') || 0);
+          if (len > MAX_SITE) { console.log('publish refused: too big', d, path, len); return json({ error: 'too_big', limit: MAX_SITE, size: len }, 413); }
+          if (path) {
+            const exists = await env.DB.prepare('SELECT 1 FROM pages WHERE domain = ? AND path = ?').bind(d, path).first();
+            if (!exists) {
+              const { n } = await env.DB.prepare('SELECT COUNT(*) AS n FROM pages WHERE domain = ?').bind(d).first();
+              if (n >= MAX_PAGES) return json({ error: 'too_many_pages', limit: MAX_PAGES }, 400);
+            }
+          }
+          if (len && (await siteBytes(env.DB, d, path)) + len > MAX_SITE) return json({ error: 'site_full', limit: MAX_SITE }, 413);
           let title = '';
           try { title = decodeURIComponent(req.headers.get('X-Title') || ''); } catch { /* keep empty */ }
           if (!req.body) return json({ error: 'empty' }, 400);
           try {
-            const size = await streamPublish(env.DB, d, title.slice(0, 120), req.body);
-            return json({ ok: true, size });
+            const up = await streamToPieces(env.DB, pieceKey(d, path), req.body);
+            await commitPieces(env.DB, d, path, title.slice(0, 120), up);
+            return json({ ok: true, size: up.total, path });
           } catch (e) {
-            if (e && e.tooBig) { console.log('publish refused: too big', d); return json({ error: 'too_big', limit: MAX_SITE }, 413); }
+            if (e && e.tooBig) { console.log('publish refused: too big', d, path); return json({ error: 'too_big', limit: MAX_SITE }, 413); }
             throw e;
           }
         }
       } catch (e) {
-        console.log('site error', req.method, d, String(e && e.message));
+        console.log('site error', req.method, d, path, String(e && e.message));
         return json({ error: 'server_error' }, 500);
       }
       return json({ error: 'not_found' }, 404);

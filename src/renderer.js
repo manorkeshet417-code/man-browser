@@ -53,6 +53,7 @@ const paintIcons = () => document.querySelectorAll('[data-icon]').forEach(n => s
 
 /* ================= text ================= */
 const ENGINES = {
+  man: { name: 'Man Search', url: 'man://search.domain/?q=%s' }, // Man Browser sites + Wikipedia + links to the web
   google: { name: 'Google', url: 'https://www.google.com/search?q=%s' },
   duckduckgo: { name: 'DuckDuckGo', url: 'https://duckduckgo.com/?q=%s' },
   bing: { name: 'Bing', url: 'https://www.bing.com/search?q=%s' },

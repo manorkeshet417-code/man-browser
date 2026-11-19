@@ -16,6 +16,7 @@ const REGISTRAR = 'manstudio.domain';
 const INTERNAL_PAGES = {
   'manstudio.domain': path.join(__dirname, 'src', 'registrar'),
   'whatsnew.domain': path.join(__dirname, 'src', 'whatsnew'),
+  'search.domain': path.join(__dirname, 'src', 'search'), // Man Search
 };
 const WHATS_NEW = 'man://whatsnew.domain/';
 // Free endings. Keep in sync with server/src/index.js, src/renderer.js and src/registrar/app.js.
@@ -79,10 +80,21 @@ async function manHandler(req) {
   }
   if (host.endsWith('.domain')) return html(infoPage(host, 'This address is reserved.', { href: `man://${REGISTRAR}/`, label: REGISTRAR }), 404);
   try {
-    // streamed straight through: sites can be up to 30 MB
-    const r = await net.fetch(`${DOMAINS_API}/site/${encodeURIComponent(host)}`, { cache: 'no-store' });
-    if (r.ok) return new Response(r.body, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' } });
+    // streamed straight through: sites can be up to 30 MB. Sites have pages: man://x.fun/about, /style.css …
+    const pagePath = u.pathname.replace(/^\/+/, '');
+    const r = await net.fetch(`${DOMAINS_API}/site/${encodeURIComponent(host)}${pagePath ? '/' + pagePath : ''}`, { cache: 'no-store' });
+    if (r.ok) {
+      const ext = path.extname(r.headers.get('x-path') || pagePath).toLowerCase();
+      const type = { '.css': 'text/css', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json',
+        '.svg': 'image/svg+xml', '.txt': 'text/plain', '.xml': 'application/xml' }[ext] || 'text/html';
+      return new Response(r.body, { headers: { 'content-type': type + '; charset=utf-8', 'cache-control': 'no-store' } });
+    }
     if (r.status !== 404) throw new Error('status ' + r.status);
+    let err = '';
+    try { err = (await r.json()).error; } catch { /* ignore */ }
+    if (err === 'no_page') {
+      return html(infoPage('404', `There's no page /${pagePath} on ${host}.`, { href: `man://${host}/`, label: `Go to ${host}` }), 404);
+    }
     return html(infoPage(host, 'This domain is free! Grab it at manstudio.domain.', { href: `man://${REGISTRAR}/?d=${encodeURIComponent(host)}`, label: 'Get this domain' }), 404);
   } catch {
     return html(infoPage(host, 'Could not reach the Man Studio domain service. Check your internet connection.'), 502);

@@ -36,6 +36,7 @@
     u = String(u ?? '').trim();
     if (!u) return '';
     if (/^(https?:|man:|mailto:)/i.test(u)) return u;
+    if (/^\/[a-z0-9._\-/]*$/i.test(u)) return u; // a page of this site: "/", "/about", "/games/one"
     if (/^[a-z0-9.-]+\.[a-z]{2,}(\/.*)?$/i.test(u)) return 'https://' + u; // "youtube.com/x" → https://
     return '';
   };
@@ -148,6 +149,10 @@ ${body}
         B('links', { items: '▶ My YouTube | https://www.youtube.com/\n💻 My GitHub | https://github.com/\n✦ Get your own free domain | man://manstudio.domain/' }),
       ] };
       case 'blank': return { v: 1, theme: 'mono', font: 'modern', blocks: [B('hero', { title: t })] };
+      case 'page': return { v: 1, theme: 'violet', font: 'modern', blocks: [
+        B('hero', { title: t, subtitle: '', button: '← Home', link: '/' }),
+        B('text', { heading: '', body: 'Write this page here.' }),
+      ] };
       default: return { v: 1, theme: 'violet', font: 'modern', blocks: [
         B('hero', { title: '👋 ' + t, subtitle: `Welcome to my site on ${domain || ''}`, button: 'Contact me', link: 'mailto:' }),
         B('text', { heading: 'About me', body: 'Write a few words about yourself here.' }),

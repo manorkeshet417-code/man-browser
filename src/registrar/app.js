@@ -43,6 +43,9 @@ const TEXT = {
     published: 'Published ✓ {n} — your site is live', saveFail: 'No connection to the server. Trying again…',
     tooBig: 'Your site is {n}. The limit is 30 MB. Tip: link to images (https://…) instead of pasting them into the code.',
     uploading: 'Uploading {n}…', loading: 'Opening…',
+    pageLabel: 'Page', homePage: 'Home page (/)', addPage: '+ Add page', newPagePh: 'new page, e.g. about', delPage: 'Delete page',
+    confirmDelPage: 'Delete the page /{d}?', pageAdded: 'Page /{d} added. Link to it with /{d}',
+    tooManyPages: 'A site can have up to 50 pages.', siteFull: 'The whole site (all pages together) can be up to 30 MB.',
     bigCode: 'This site is {n}: too big to edit here (it would freeze the page). To change it, use “⬆ Upload .html” with the new file. The preview on the right shows the site.',
     notOwner: 'This browser doesn’t have the owner key for this site. Paste your saved key under “Owner key”.',
     upload: '⬆ Upload .html', uploaded: 'File loaded — publishing…',
@@ -83,6 +86,9 @@ const TEXT = {
     published: 'פורסם ✓ {n} — האתר באוויר', saveFail: 'אין חיבור לשרת. מנסה שוב…',
     tooBig: 'האתר שוקל {n}. המקסימום הוא 30 MB. טיפ: לקשר לתמונות (https://…) במקום להדביק אותן בתוך הקוד.',
     uploading: 'מעלה {n}…', loading: 'פותח…',
+    pageLabel: 'דף', homePage: 'דף הבית (/)', addPage: '+ הוספת דף', newPagePh: 'דף חדש, למשל about', delPage: 'מחיקת הדף',
+    confirmDelPage: 'למחוק את הדף /{d}?', pageAdded: 'הדף /{d} נוסף. מקשרים אליו עם /{d}',
+    tooManyPages: 'לאתר יכולים להיות עד 50 דפים.', siteFull: 'כל האתר יחד (כל הדפים) יכול להיות עד 30 MB.',
     bigCode: 'האתר שוקל {n}: גדול מדי לעריכה כאן (הדף היה נתקע). כדי לשנות אותו, משתמשים ב-“⬆ העלאת קובץ ‎.html” עם הקובץ החדש. התצוגה המקדימה מימין מראה את האתר.',
     notOwner: 'בדפדפן הזה אין את מפתח הבעלים של האתר. הדביקו את המפתח השמור תחת “מפתח בעלים”.',
     upload: '⬆ העלאת קובץ ‎.html', uploaded: 'הקובץ נטען — מפרסם…',
@@ -377,26 +383,110 @@ async function openEditor(s) {
     } catch { toast(t('error')); return; }
   }
   editing = s;
+  curPath = '';
   $('#editor').hidden = false;
   $('#ed-domain').textContent = s.domain;
-  $('#ed-title').value = s.title || '';
-  setCode(s.html || '');
-  $('#ed-template').value = '';
+  showPage(s.title || '', s.html || '');
   setStatus('autoNote');
-  bstate = Builder.parse(s.html);
+  $('#editor').scrollIntoView({ behavior: 'smooth' });
+  loadPages();
+}
+// put one page's content into the editor (builder if it was made with blocks, otherwise code)
+function showPage(title, html) {
+  $('#ed-title').value = title;
+  setCode(html);
+  $('#ed-template').value = '';
+  bstate = Builder.parse(html);
   if (bstate) { setMode('builder'); Builder.mount($('#ed-builder'), bstate, builderChanged, t); }
   else setMode('code');
   preview();
-  $('#editor').scrollIntoView({ behavior: 'smooth' });
 }
+
+/* ---------- pages: a site is a home page + up to 50 more (man://site.fun/about, /games/one, /style.css …) ---------- */
+let curPath = '', pagesList = [];
+const pageUrl = (d, path) => `${API}/site/${encodeURIComponent(d)}${path ? '/' + path.split('/').map(encodeURIComponent).join('/') : ''}`;
+async function loadPages() {
+  if (!editing) return;
+  try {
+    const r = await fetch(`${API}/pages/${encodeURIComponent(editing.domain)}`, { cache: 'no-store' });
+    pagesList = r.ok ? await r.json() : [{ path: '' }];
+  } catch { pagesList = [{ path: '' }]; }
+  fillPages();
+}
+function fillPages() {
+  const sel = $('#ed-page');
+  sel.innerHTML = '';
+  for (const pg of pagesList) {
+    const o = document.createElement('option');
+    o.value = pg.path;
+    o.textContent = pg.path ? '/' + pg.path : t('homePage');
+    sel.append(o);
+  }
+  sel.value = curPath;
+  $('#ed-delpage').disabled = !curPath;
+}
+async function openPage(path) {
+  if (!editing || path === curPath) return;
+  await save(); // keep what was typed on the page we're leaving
+  if (path === '') { curPath = ''; showPage(editing.title || '', editing.html || ''); fillPages(); return; }
+  setStatus('loading');
+  try {
+    const r = await fetch(pageUrl(editing.domain, path) + '?noview=1', { cache: 'no-store' });
+    if (!r.ok) throw new Error('http ' + r.status);
+    const html = await r.text();
+    curPath = path;
+    let title = '';
+    try { title = decodeURIComponent(r.headers.get('X-Title') || ''); } catch { /* ignore */ }
+    showPage(title, html);
+    setStatus('autoNote');
+  } catch { setStatus('saveFail', 'bad'); }
+  fillPages();
+}
+const slugOf = v => String(v || '').trim().toLowerCase().replace(/^\/+|\/+$/g, '').replace(/\s+/g, '-').replace(/[^a-z0-9._\-/]/g, '').slice(0, 80);
+$('#ed-page').addEventListener('change', e => openPage(e.target.value));
+$('#ed-addpage').onclick = async () => {
+  if (!editing) return;
+  const path = slugOf($('#ed-newpage').value);
+  if (!path || path === 'index.html') { $('#ed-newpage').focus(); return; }
+  $('#ed-newpage').value = '';
+  if (pagesList.some(pg => pg.path === path)) { openPage(path); return; }
+  if (pagesList.length > 50) { setStatus('tooManyPages', 'bad'); return; }
+  await save();
+  const title = path.split('/').pop().replace(/[-_.]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  const html = Builder.render(Builder.template('page', title, editing.domain), title);
+  try {
+    await publish(editing.domain, title, html, false, path);
+    pagesList.push({ path, size: html.length });
+    pagesList.sort((a, b) => a.path.localeCompare(b.path));
+    curPath = path;
+    showPage(title, html);
+    fillPages();
+    toast(t('pageAdded', { d: path }));
+  } catch (err) { setStatus(err && err.code === 'too_many_pages' ? 'tooManyPages' : 'saveFail', 'bad'); }
+};
+$('#ed-newpage').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('#ed-addpage').click(); } });
+$('#ed-delpage').onclick = async () => {
+  if (!editing || !curPath || !confirm(t('confirmDelPage', { d: curPath }))) return;
+  clearTimeout(saveT); saveT = null; pending = false; // nothing more may be saved to the page being deleted
+  const gone = curPath;
+  try {
+    const r = await fetch(pageUrl(editing.domain, gone), { method: 'DELETE', headers: { 'X-Owner-Key': ownerKey } });
+    if (!r.ok) throw new Error('http ' + r.status);
+  } catch { toast(t('error')); return; }
+  pagesList = pagesList.filter(pg => pg.path !== gone);
+  curPath = '';
+  showPage(editing.title || '', editing.html || '');
+  fillPages();
+  setStatus('autoNote');
+};
 function scheduleSave() {
   if (!editing) return;
   setStatus('saving');
   clearTimeout(saveT);
   saveT = setTimeout(save, getCode().length > 2e6 ? 3000 : 800);
 }
-async function publish(domain, title, html, keepalive) {
-  const r = await fetch(`${API}/site/${encodeURIComponent(domain)}`, {
+async function publish(domain, title, html, keepalive, path = curPath) {
+  const r = await fetch(pageUrl(domain, path), {
     method: 'PUT', keepalive: !!keepalive,
     headers: { 'Content-Type': 'text/html; charset=utf-8', 'X-Owner-Key': ownerKey, 'X-Title': encodeURIComponent(title) },
     body: html,
@@ -420,11 +510,13 @@ async function save() {
   if (size > 2e6) setStatus('uploading', '', fmtSize(size));
   try {
     await publish(editing.domain, title, html);
-    editing.title = title; editing.html = html; editing.size = size;
+    if (!curPath) { editing.title = title; editing.html = html; editing.size = size; }
     setStatus('published', 'ok', new Date().toLocaleTimeString(lang === 'he' ? 'he-IL' : 'en-US', { hour: '2-digit', minute: '2-digit' }) + ' · ' + fmtSize(size));
   } catch (e) {
     const code = e && e.code;
     if (code === 'too_big') { setStatus('tooBig', 'bad', fmtSize(size)); return; }
+    if (code === 'site_full') { setStatus('siteFull', 'bad'); return; }
+    if (code === 'too_many_pages') { setStatus('tooManyPages', 'bad'); return; }
     if (code === 'not_owner' || code === 'bad_token' || code === 'no_site') { setStatus('notOwner', 'bad'); return; } // retrying won't help
     setStatus('saveFail', 'bad');
     saveT = setTimeout(save, 5000); // network problem: try again
@@ -506,7 +598,7 @@ window.addEventListener('pagehide', () => {
   if (html.length > 63000 || byteSize(html) > 63000) return;
   try { publish(editing.domain, $('#ed-title').value, html, true).catch(() => {}); } catch { /* ignore */ }
 });
-$('#ed-visit').onclick = async () => { if (!editing) return; await save(); goTo(editing.domain); };
+$('#ed-visit').onclick = async () => { if (!editing) return; await save(); goTo(editing.domain + (curPath ? '/' + curPath : '')); };
 $('#ed-close').onclick = async () => { await save(); $('#editor').hidden = true; editing = null; loadMine(); };
 $('#ed-delete').onclick = async () => {
   if (!editing || !confirm(t('confirmDel', { d: editing.domain }))) return;

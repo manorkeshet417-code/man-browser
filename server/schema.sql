@@ -42,3 +42,19 @@ CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions (user_id);
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 -- the name "Man Studio" can be claimed once; whoever claims it becomes the dev, then this closes
 INSERT OR IGNORE INTO meta (key, value) VALUES ('dev_signup_open', '1');
+
+-- Pages and Man Search (added in 1.5.0)
+CREATE TABLE IF NOT EXISTS pages (
+  domain     TEXT NOT NULL,
+  path       TEXT NOT NULL,
+  title      TEXT NOT NULL DEFAULT '',
+  html       TEXT NOT NULL DEFAULT '',
+  chunks     INTEGER NOT NULL DEFAULT 0,
+  size       INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (domain, path)
+);
+CREATE VIRTUAL TABLE IF NOT EXISTS search_idx USING fts5(
+  domain UNINDEXED, path UNINDEXED, name, title, body,
+  tokenize = 'unicode61 remove_diacritics 2'
+);
