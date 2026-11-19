@@ -529,7 +529,7 @@ function setupUpdates() {
   let autoUpdater;
   try { ({ autoUpdater } = require('electron-updater')); } catch { return; }
   autoUpdater.autoDownload = true;
-  autoUpdater.autoInstallOnAppQuit = true; // a downloaded update installs when the browser closes
+  autoUpdater.autoInstallOnAppQuit = !SHOT; // a downloaded update installs when the browser closes (never in tests)
   autoUpdater.on('update-downloaded', info => {
     updateReady = info.version;
     for (const w of BrowserWindow.getAllWindows()) w.webContents.send('update-ready', info.version);
