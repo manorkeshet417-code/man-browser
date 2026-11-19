@@ -39,6 +39,7 @@ const ICONS = {
   play: '<path d="M8 5.5v13l10-6.5z"/>',
   spark: '<path d="M12 3l2.2 6.8L21 12l-6.8 2.2L12 21l-2.2-6.8L3 12l6.8-2.2z"/>',
   gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+  user: '<circle cx="12" cy="8.5" r="4"/><path d="M4.5 20.5c0-4.2 3.4-6.8 7.5-6.8s7.5 2.6 7.5 6.8"/>',
   gift: '<rect x="3.5" y="8" width="17" height="4" rx="1"/><path d="M5 12v8.5h14V12M12 8v12.5"/><path d="M12 8C10 4 6.5 4.5 7.5 7c.4 1 2.5 1 4.5 1zM12 8c2-4 5.5-3.5 4.5-1-.4 1-2.5 1-4.5 1z"/>',
 };
 const svg = n => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n] || ''}</svg>`;
@@ -78,6 +79,14 @@ const I18N = {
     startup: 'On startup', startupNew: 'Open the new tab page', startupRestore: 'Continue where I left off',
     langHint: 'Menus, pages and websites switch right away', whatsNew: 'What’s new',
     updateBtn: 'Restart to update', updateReady: 'Man Browser {n} is ready. It installs when you restart or close the browser.',
+    account: 'Account', signIn: 'Sign in', signUp: 'Create account', signOut: 'Sign out', username: 'Username', password: 'Password',
+    confirmPassword: 'Confirm password', acctNote: 'You stay signed in until you sign out, even after closing the browser.',
+    signedInAs: 'Signed in', devNote: 'You’re the Man Studio developer: you can use .man domains at manstudio.domain.',
+    welcome: 'Welcome, {n}!', signedOut: 'Signed out',
+    err_wrong: 'Wrong username or password.', err_locked: 'Too many wrong tries. Try again in 15 minutes.',
+    err_taken: 'That username is already taken.', err_bad_username: 'Username: 3–24 letters or numbers (spaces, dots, - and _ are fine in the middle).',
+    err_bad_password: 'Password: at least 8 characters.', err_mismatch: 'The passwords don’t match.',
+    err_offline: 'No internet connection.', err_server: 'Something went wrong. Try again.',
     clearData: 'Clear browsing data', clearDataHint: 'History, cookies, cache and site data', clearBtn: 'Clear', cleared: 'Browsing data cleared',
     today: 'Today', yesterday: 'Yesterday', morning: 'Good morning', afternoon: 'Good afternoon', evening: 'Good evening', night: 'Good night',
     errTitle: 'This page can’t be reached', retry: 'Try again',
@@ -107,6 +116,14 @@ const I18N = {
     startup: 'בפתיחה', startupNew: 'לפתוח את דף הכרטיסייה החדשה', startupRestore: 'להמשיך מאיפה שהפסקתי',
     langHint: 'התפריטים, הדפים והאתרים מתחלפים מיד', whatsNew: 'מה חדש',
     updateBtn: 'הפעלה מחדש לעדכון', updateReady: 'Man Browser {n} מוכן. הוא יותקן כשתפעילו מחדש או תסגרו את הדפדפן.',
+    account: 'חשבון', signIn: 'התחברות', signUp: 'יצירת חשבון', signOut: 'התנתקות', username: 'שם משתמש', password: 'סיסמה',
+    confirmPassword: 'אימות סיסמה', acctNote: 'נשארים מחוברים עד שמתנתקים, גם אחרי שסוגרים את הדפדפן.',
+    signedInAs: 'מחובר/ת', devNote: 'אתה המפתח של Man Studio: אפשר להשתמש בדומיינים ‎.man ב-manstudio.domain.',
+    welcome: 'ברוך הבא, {n}!', signedOut: 'התנתקת',
+    err_wrong: 'שם משתמש או סיסמה לא נכונים.', err_locked: 'יותר מדי ניסיונות שגויים. נסו שוב בעוד 15 דקות.',
+    err_taken: 'שם המשתמש הזה כבר תפוס.', err_bad_username: 'שם משתמש: 3–24 אותיות או מספרים (רווחים, נקודות, - ו-_ מותרים באמצע).',
+    err_bad_password: 'סיסמה: לפחות 8 תווים.', err_mismatch: 'הסיסמאות לא תואמות.',
+    err_offline: 'אין חיבור לאינטרנט.', err_server: 'משהו השתבש. נסו שוב.',
     clearData: 'ניקוי נתוני גלישה', clearDataHint: 'היסטוריה, עוגיות, מטמון ונתוני אתרים', clearBtn: 'ניקוי', cleared: 'נתוני הגלישה נוקו',
     today: 'היום', yesterday: 'אתמול', morning: 'בוקר טוב', afternoon: 'צהריים טובים', evening: 'ערב טוב', night: 'לילה טוב',
     errTitle: 'אי אפשר להגיע לדף הזה', retry: 'לנסות שוב',
@@ -197,6 +214,7 @@ function applyLang() {
   if (active) updateToolbar();
   renderBar();
   renderNewTab();
+  renderAccountBtn();
   if (panelName) renderPanel();
 }
 
@@ -768,6 +786,7 @@ function renderPanel() {
   else if (panelName === 'downloads') renderDownloads(body);
   else if (panelName === 'bookmarks') renderBookmarks(body);
   else if (panelName === 'settings') renderSettings(body);
+  else if (panelName === 'account') renderAccount(body);
 }
 function dayLabel(ts) {
   const d = new Date(ts), today = new Date();
@@ -980,6 +999,79 @@ $('#hist-btn').addEventListener('click', () => togglePanel('history'));
 $('#bm-btn').addEventListener('click', () => togglePanel('bookmarks'));
 $('#menu-btn').addEventListener('click', mainMenu);
 $('#settings-btn').addEventListener('click', () => togglePanel('settings'));
+
+/* ================= account ================= */
+let account = null, accMode = 'login';
+function renderAccountBtn() {
+  const b = $('#account-btn');
+  b.innerHTML = '';
+  b.classList.toggle('dev', !!account && account.role === 'dev');
+  if (account) {
+    b.append(letterIcon(account.username));
+    b.title = `${account.username}${account.role === 'dev' ? ' · DEV' : ''}`;
+  } else {
+    b.innerHTML = svg('user');
+    b.title = t('signIn');
+  }
+}
+function reloadRegistrarTabs() {
+  for (const tb of tabs) if (tb.ready && /^man:\/\/manstudio\.domain\//i.test(tb.url)) tb.wv.reload();
+}
+function renderAccount(body) {
+  if (account) {
+    const card = el('div', 'acct-card');
+    card.append(letterIcon(account.username), el('div', 'name', account.username));
+    if (account.role === 'dev') {
+      card.append(el('span', 'dev-badge', 'DEV · MAN STUDIO'), el('div', 'acct-note', t('devNote')));
+    } else card.append(el('div', 'acct-note', t('signedInAs')));
+    const out = el('button', 'btn ghost', t('signOut'));
+    out.style.marginTop = '14px';
+    out.addEventListener('click', async () => { await api.signOut(); toast(t('signedOut')); });
+    card.append(out, el('div', 'acct-note', t('acctNote')));
+    body.append(card);
+    return;
+  }
+  const seg = el('div', 'seg');
+  for (const m of ['login', 'signup']) {
+    const b = el('button', m === accMode ? 'on' : '', t(m === 'login' ? 'signIn' : 'signUp'));
+    b.addEventListener('click', () => { accMode = m; renderPanel(); });
+    seg.append(b);
+  }
+  const form = el('form', 'acct-form');
+  const field = (label, type, ac) => {
+    const i = el('input', 'inp');
+    i.type = type; i.autocomplete = ac; i.spellcheck = false; i.maxLength = type === 'password' ? 128 : 24;
+    form.append(el('label', '', label), i);
+    return i;
+  };
+  const user = field(t('username'), 'text', 'username');
+  const pass = field(t('password'), 'password', accMode === 'signup' ? 'new-password' : 'current-password');
+  const pass2 = accMode === 'signup' ? field(t('confirmPassword'), 'password', 'new-password') : null;
+  const err = el('div', 'acct-err');
+  const go = el('button', 'btn', t(accMode === 'login' ? 'signIn' : 'signUp'));
+  go.type = 'submit';
+  form.append(err, go, el('div', 'acct-note', t('acctNote')));
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    err.textContent = '';
+    if (pass2 && pass.value !== pass2.value) { err.textContent = t('err_mismatch'); return; }
+    go.disabled = true;
+    const res = await (accMode === 'signup' ? api.signUp : api.signIn)(user.value, pass.value);
+    go.disabled = false;
+    if (res && res.ok) toast(t('welcome', res.account.username));
+    else err.textContent = t('err_' + ((res && res.error) || 'server'));
+  });
+  body.append(seg, form);
+  setTimeout(() => user.focus(), 50);
+}
+$('#account-btn').addEventListener('click', () => togglePanel('account'));
+api.on('account-changed', a => {
+  account = a;
+  renderAccountBtn();
+  if (panelName === 'account') renderPanel();
+  reloadRegistrarTabs(); // manstudio.domain shows .man only to the dev
+});
+api.account().then(a => { account = a; renderAccountBtn(); });
 
 /* automatic updates: main downloads in the background; we show a button when it's ready */
 function showUpdate(version) {

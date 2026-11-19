@@ -3,6 +3,18 @@
    To add a release: put a new entry at the TOP of CHANGELOG and bump "version" in package.json. */
 const CHANGELOG = [
   {
+    version: '1.2.0',
+    date: '2026-11-19',
+    items: [
+      { icon: '👤', en: ['Man Browser accounts', 'Create an account with a username and password from the new account button in the toolbar. You stay signed in, even after closing the browser.'],
+        he: ['חשבונות Man Browser', 'יוצרים חשבון עם שם משתמש וסיסמה מכפתור החשבון החדש בשורת הכלים. נשארים מחוברים, גם אחרי שסוגרים את הדפדפן.'] },
+      { icon: '✦', en: ['.man belongs to Man Studio', 'The .man ending is now reserved for Man Studio. All the other free endings stay open to everyone.'],
+        he: ['‎.man שייכת ל-Man Studio', 'הסיומת ‎.man שמורה עכשיו ל-Man Studio. כל שאר הסיומות החינמיות נשארות פתוחות לכולם.'] },
+      { icon: '🛠️', en: ['Opens every time', 'Fixed a bug where Man Browser could start without showing its window, so clicking the icon seemed to do nothing.'],
+        he: ['נפתח בכל פעם', 'תוקן באג שבו Man Browser יכל להיפתח בלי להציג חלון, כך שלחיצה על האייקון כאילו לא עשתה כלום.'] },
+    ],
+  },
+  {
     version: '1.1.1',
     date: '2026-11-19',
     items: [

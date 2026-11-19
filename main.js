@@ -47,6 +47,13 @@ const html = (body, status = 200) => new Response(body, { status, headers: { 'co
 async function manHandler(req) {
   const u = new URL(req.url);
   const host = u.hostname.toLowerCase();
+  // Only the registrar page may read the signed-in account (other man:// sites are other origins,
+  // and this answer has no CORS header, so they can't read it).
+  if (host === REGISTRAR && u.pathname === '/api/account') {
+    const a = store.account;
+    return new Response(JSON.stringify(a ? { username: a.username, role: a.role, session: a.token } : null),
+      { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
+  }
   if (host === REGISTRAR && u.pathname === '/api/dns') {
     const exists = await realDomainExists(u.searchParams.get('host'));
     return new Response(JSON.stringify({ exists }), { headers: { 'content-type': 'application/json' } });
@@ -370,7 +377,12 @@ function createWindow({ incognito = false, urls = [] } = {}) {
   const id = win.webContents.id;
   initialUrls.set(id, urls);
   win.loadFile(path.join(__dirname, 'src', 'index.html'), incognito ? { query: { incognito: '1' } } : undefined);
-  win.once('ready-to-show', () => win.show());
+  // Show as soon as Chromium says it's ready, but never stay invisible: in 1.1.1 'ready-to-show'
+  // sometimes never fired, leaving a hidden window that swallowed every later launch.
+  const reveal = () => { if (!win.isDestroyed() && !win.isVisible()) win.show(); };
+  win.once('ready-to-show', reveal);
+  win.webContents.once('did-finish-load', reveal);
+  setTimeout(reveal, 2500);
   if (SHOT) win.webContents.on('console-message', (_e, level, msg) => console.log('[renderer]', msg));
   win.on('enter-full-screen', () => win.webContents.send('fullscreen', true));
   win.on('leave-full-screen', () => win.webContents.send('fullscreen', false));
@@ -489,6 +501,50 @@ ipcMain.handle('top-sites', () => {
     .map(e => ({ url: e.url, title: e.title || e.host, favicon: e.favicon }));
 });
 
+/* ---------------- Man Browser account (stays signed in: the session token is saved in browser-data.json) ---------------- */
+async function accountApi(fn, body) {
+  const r = await net.fetch(`${DOMAINS_API}/rpc/${fn}`, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+  });
+  return r.json();
+}
+const publicAccount = () => (store.account ? { username: store.account.username, role: store.account.role } : null);
+function accountChanged() {
+  saveNow();
+  for (const w of BrowserWindow.getAllWindows()) w.webContents.send('account-changed', publicAccount());
+}
+async function accountSignIn(kind, username, password) {
+  try {
+    const res = await accountApi(kind === 'signup' ? 'acct_signup' : 'acct_login', { username, password });
+    if (!res || !res.ok) return { error: (res && res.error) || 'server' };
+    store.account = { token: res.token, username: res.user.username, role: res.user.role };
+    accountChanged();
+    return { ok: true, account: publicAccount() };
+  } catch { return { error: 'offline' }; }
+}
+async function refreshAccount() {
+  if (!store.account) return;
+  try {
+    const res = await accountApi('acct_me', { token: store.account.token });
+    if (res && res.ok) {
+      if (res.user.role !== store.account.role || res.user.username !== store.account.username) {
+        Object.assign(store.account, res.user);
+        accountChanged();
+      }
+    } else if (res && res.error === 'signed_out') { store.account = null; accountChanged(); }
+  } catch { /* offline: keep the saved account */ }
+}
+ipcMain.handle('account:get', () => publicAccount());
+ipcMain.handle('account:signup', (_e, username, password) => accountSignIn('signup', username, password));
+ipcMain.handle('account:login', (_e, username, password) => accountSignIn('login', username, password));
+ipcMain.handle('account:logout', async () => {
+  const token = store.account && store.account.token;
+  store.account = null;
+  accountChanged();
+  if (token) accountApi('acct_logout', { token }).catch(() => {});
+  return true;
+});
+
 // decide whether a typed host is a real website or a free Man Studio domain
 ipcMain.handle('resolve', async (_e, host) => {
   host = String(host || '').toLowerCase();
@@ -568,6 +624,7 @@ if (!SHOT && !app.requestSingleInstanceLock()) {
     const urls = urlsFromArgv(argv);
     const win = BrowserWindow.getAllWindows().find(w => !w.incognito);
     if (!win) return createWindow({ urls });
+    if (!win.isVisible()) win.show();
     if (win.isMinimized()) win.restore();
     win.focus();
     if (urls.length) urls.forEach(u => win.webContents.send('open-tab', u, true));
@@ -581,6 +638,7 @@ if (!SHOT && !app.requestSingleInstanceLock()) {
     setupSession(session.fromPartition('persist:main'));
     setupSession(session.fromPartition('incognito'));
     setupUpdates();
+    refreshAccount();
 
     const argUrls = urlsFromArgv(process.argv);
     if (process.env.MB_URL) argUrls.push(process.env.MB_URL);

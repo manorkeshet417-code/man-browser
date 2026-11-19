@@ -1,7 +1,7 @@
 'use strict';
 const { contextBridge, ipcRenderer } = require('electron');
 
-const CHANNELS = ['cmd', 'open-tab', 'search', 'blocked', 'download', 'store-changed', 'fullscreen', 'update-ready'];
+const CHANNELS = ['cmd', 'open-tab', 'search', 'blocked', 'download', 'store-changed', 'fullscreen', 'update-ready', 'account-changed'];
 
 contextBridge.exposeInMainWorld('mb', {
   init: () => ipcRenderer.invoke('init'),
@@ -24,4 +24,8 @@ contextBridge.exposeInMainWorld('mb', {
   resolve: host => ipcRenderer.invoke('resolve', host),
   updateStatus: () => ipcRenderer.invoke('update-status'),
   installUpdate: () => ipcRenderer.send('update-install'),
+  account: () => ipcRenderer.invoke('account:get'),
+  signUp: (username, password) => ipcRenderer.invoke('account:signup', username, password),
+  signIn: (username, password) => ipcRenderer.invoke('account:login', username, password),
+  signOut: () => ipcRenderer.invoke('account:logout'),
 });

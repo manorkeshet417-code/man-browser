@@ -11,8 +11,12 @@ const TLDS = [
   { tld: 'site', real: true }, { tld: 'online', real: true }, { tld: 'game', real: true }, { tld: 'me', real: true },
   { tld: 'blog', real: true }, { tld: 'art', real: true }, { tld: 'club', real: true }, { tld: 'store', real: true },
   { tld: 'tech', real: true }, { tld: 'co.ms', real: true }, { tld: 'ms', real: true },
-  { tld: 'man', real: false }, { tld: 'web', real: false },
+  { tld: 'man', real: false, dev: true }, { tld: 'web', real: false },
 ];
+// The signed-in Man Browser account (from the browser itself). `.man` belongs to Man Studio: only the dev sees it.
+let account = null;
+const isDev = () => !!account && account.role === 'dev';
+const visibleTlds = () => TLDS.filter(x => !x.dev || isDev());
 const TLD_RE = new RegExp(`^([a-z0-9-]+)\\.(${TLDS.map(x => x.tld.replace('.', '\\.')).join('|')})$`, 'i');
 
 const TEXT = {
@@ -20,7 +24,8 @@ const TEXT = {
     navMine: 'My domains', navRecent: 'New sites', heroTitle: 'Get a free domain. Build a site in seconds.',
     heroSub: 'Pick a name, claim it for free, and edit your site right here. It opens for everyone using Man Browser.',
     namePh: 'your-name', check: 'Check',
-    comNote: '* Endings with a star are also real internet endings: they work only for names that don’t already exist online. Real websites always win. .man and .web are Man Browser only. Free domains open only inside Man Browser.',
+    comNote: '* Endings with a star are also real internet endings: they work only for names that don’t already exist online. Real websites always win. .web exists only in Man Browser. Free domains open only inside Man Browser.',
+    devOnly: '.{d} belongs to Man Studio.', devPill: 'Man Studio only',
     available: '{d} is available!', register: 'Get it free', taken: '{d} is already taken', visit: 'Visit',
     invalid: 'Use 1–42 letters, numbers or dashes (no dash at the start or end).', reserved: '{d} is reserved',
     real: '{d} already exists on the real internet, so it can’t be a free domain.', limit: 'You already have 10 domains — that’s the limit.',
@@ -40,7 +45,8 @@ const TEXT = {
     navMine: 'הדומיינים שלי', navRecent: 'אתרים חדשים', heroTitle: 'דומיין בחינם. אתר בכמה שניות.',
     heroSub: 'בוחרים שם, לוקחים אותו בחינם ועורכים את האתר כאן. הוא נפתח לכל מי שמשתמש ב-Man Browser.',
     namePh: 'השם-שלך', check: 'בדיקה',
-    comNote: '* סיומות עם כוכבית קיימות גם באינטרנט האמיתי: הן עובדות רק לשמות שעוד לא קיימים שם. אתרים אמיתיים תמיד קודמים. ‎.man ו-‎.web שייכות רק ל-Man Browser. הדומיינים החינמיים נפתחים רק בתוך Man Browser.',
+    comNote: '* סיומות עם כוכבית קיימות גם באינטרנט האמיתי: הן עובדות רק לשמות שעוד לא קיימים שם. אתרים אמיתיים תמיד קודמים. ‎.web קיימת רק ב-Man Browser. הדומיינים החינמיים נפתחים רק בתוך Man Browser.',
+    devOnly: 'הסיומת ‎.{d} שייכת ל-Man Studio.', devPill: 'רק Man Studio',
     available: '{d} פנוי!', register: 'לקחת בחינם', taken: '{d} כבר תפוס', visit: 'כניסה',
     invalid: 'אפשר 1–42 אותיות באנגלית, מספרים או מקפים (בלי מקף בהתחלה או בסוף).', reserved: '{d} שמור',
     real: '{d} כבר קיים באינטרנט האמיתי, ולכן אי אפשר לקחת אותו.', limit: 'יש לך כבר 10 דומיינים — זה המקסימום.',
@@ -68,12 +74,14 @@ function applyLang() {
 }
 function fillTlds() {
   const sel = $('#tld'), pills = $('#tlds');
-  for (const { tld, real } of TLDS) {
+  sel.innerHTML = ''; pills.innerHTML = '';
+  for (const { tld, real, dev } of visibleTlds()) {
     const o = document.createElement('option');
     o.value = tld; o.textContent = '.' + tld;
     sel.append(o);
     const p = document.createElement('button');
-    p.type = 'button'; p.className = 'pill'; p.textContent = '.' + tld + (real ? '*' : '');
+    p.type = 'button'; p.className = 'pill' + (dev ? ' dev' : ''); p.textContent = '.' + tld + (real ? '*' : '');
+    if (dev) p.title = t('devPill');
     p.addEventListener('click', () => { sel.value = tld; $('#name').focus(); });
     pills.append(p);
   }
@@ -212,13 +220,14 @@ async function check() {
   setResult('', '<span>…</span>');
   try {
     const [st, dnsRes] = await Promise.all([
-      rpc('mb_site_check', { p_domain: d }),
+      rpc('mb_site_check', { p_domain: d, p_session: account && account.session }),
       fetch(`/api/dns?host=${encodeURIComponent(d)}`).then(r => r.json()).catch(() => ({ exists: false })),
     ]);
     if (st === 'taken') {
       setResult('bad', `<b>${esc(t('taken', { d }))}</b><button class="ghost" id="r-visit">${esc(t('visit'))}</button>`);
       $('#r-visit').onclick = () => goTo(d);
     } else if (st === 'reserved') setResult('bad', `<b>${esc(t('reserved', { d }))}</b>`);
+    else if (st === 'dev_only') setResult('bad', `<b>${esc(t('devOnly', { d: d.split('.').slice(1).join('.') }))}</b>`);
     else if (st !== 'ok') setResult('bad', `<span>${esc(t('invalid'))}</span>`);
     else if (dnsRes.exists) setResult('bad', `<span>${esc(t('real', { d }))}</span>`);
     else {
@@ -230,7 +239,7 @@ async function check() {
 async function register(d) {
   const title = d.split('.')[0].replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   try {
-    const st = await rpc('mb_site_register', { p_domain: d, p_token: ownerKey, p_title: title, p_html: TEMPLATES.personal(d, title) });
+    const st = await rpc('mb_site_register', { p_domain: d, p_token: ownerKey, p_session: account && account.session, p_title: title, p_html: TEMPLATES.personal(d, title) });
     if (st === 'ok') {
       toast(t('registered', { d }));
       $('#result').hidden = true; $('#name').value = '';
@@ -239,6 +248,7 @@ async function register(d) {
       loadRecent();
     } else if (st === 'limit') setResult('bad', `<span>${esc(t('limit'))}</span>`);
     else if (st === 'taken') setResult('bad', `<b>${esc(t('taken', { d }))}</b>`);
+    else if (st === 'dev_only') setResult('bad', `<b>${esc(t('devOnly', { d: d.split('.').slice(1).join('.') }))}</b>`);
     else setResult('bad', `<span>${esc(t('invalid'))}</span>`);
   } catch { setResult('bad', `<span>${esc(t('error'))}</span>`); }
 }
@@ -346,12 +356,17 @@ $('#use-key').onclick = () => {
 
 /* ---------- start ---------- */
 $('#search').addEventListener('submit', e => { e.preventDefault(); check(); });
-fillTlds();
 applyLang();
 loadMine();
 loadRecent();
-const want = new URLSearchParams(location.search).get('d');
-if (want) {
-  const m = TLD_RE.exec(want);
-  if (m) { $('#name').value = m[1].toLowerCase(); $('#tld').value = m[2].toLowerCase(); check(); }
-}
+(async () => {
+  try { account = await fetch('/api/account', { cache: 'no-store' }).then(r => r.json()); } catch { account = null; }
+  fillTlds();
+  const want = new URLSearchParams(location.search).get('d');
+  const m = want && TLD_RE.exec(want);
+  if (m) {
+    $('#name').value = m[1].toLowerCase();
+    if (visibleTlds().some(x => x.tld === m[2].toLowerCase())) { $('#tld').value = m[2].toLowerCase(); check(); }
+    else setResult('bad', `<b>${esc(t('devOnly', { d: m[2].toLowerCase() }))}</b>`);
+  }
+})();

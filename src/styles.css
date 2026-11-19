@@ -126,6 +126,23 @@ html[dir="rtl"] #addr:placeholder-shown { direction: rtl; }
   background: linear-gradient(135deg, #16a34a, #0ea5e9); box-shadow: 0 2px 8px rgba(14, 165, 233, .35);
 }
 .update-btn svg { width: 15px; height: 15px; }
+
+/* account */
+.account-btn .letter { width: 24px; height: 24px; border-radius: 50%; font-size: 12px; }
+.account-btn.dev .letter { box-shadow: 0 0 0 2px var(--bar), 0 0 0 4px #a855f7; }
+.acct-card { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 22px 8px 8px; }
+.acct-card .letter { width: 72px; height: 72px; border-radius: 50%; font-size: 30px; }
+.acct-card .name { font-size: 19px; font-weight: 600; }
+.dev-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11.5px; font-weight: 700; letter-spacing: .5px; color: #fff; background: linear-gradient(135deg, #7c3aed, #db2777); }
+.acct-note { color: var(--muted); font-size: 12.5px; max-width: 300px; }
+.seg { display: flex; gap: 4px; padding: 4px; margin: 6px 6px 14px; border-radius: 12px; background: var(--field); }
+.seg button { flex: 1; height: 32px; border-radius: 9px; font-weight: 600; color: var(--muted); }
+.seg button.on { background: var(--panel); color: var(--text); box-shadow: var(--shadow-soft); }
+.acct-form { display: flex; flex-direction: column; gap: 10px; padding: 0 8px; }
+.acct-form label { font-size: 12.5px; font-weight: 600; color: var(--muted); margin-bottom: -6px; }
+.acct-form .inp { height: 38px; }
+.acct-form .btn { height: 40px; margin-top: 6px; }
+.acct-err { color: var(--danger); font-size: 12.5px; min-height: 18px; }
 .update-btn:hover { filter: brightness(1.08); }
 @keyframes bump { 30% { transform: translateY(3px) scale(1.12); color: var(--accent); } }
 
