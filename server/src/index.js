@@ -66,9 +66,10 @@ async function newSession(db, userId) {
 
 async function check(db, d, user) {
   if (!DOMAIN_RE.test(d)) return 'invalid';
-  if (RESERVED.has(d.split('.')[0])) return 'reserved';
+  const isDev = !!user && user.role === 'dev';
+  if (RESERVED.has(d.split('.')[0]) && !isDev) return 'reserved'; // e.g. manstudio.fun: only Man Studio may take it
   const tld = d.slice(d.indexOf('.') + 1);
-  if (DEV_ONLY_TLDS.has(tld) && (!user || user.role !== 'dev')) return 'dev_only';
+  if (DEV_ONLY_TLDS.has(tld) && !isDev) return 'dev_only';
   const row = await db.prepare('SELECT 1 FROM sites WHERE domain = ?').bind(d).first();
   return row ? 'taken' : 'ok';
 }
