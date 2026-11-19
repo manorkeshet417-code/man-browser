@@ -3,6 +3,14 @@
    To add a release: put a new entry at the TOP of CHANGELOG and bump "version" in package.json. */
 const CHANGELOG = [
   {
+    version: '1.4.1',
+    date: '2026-11-19',
+    items: [
+      { icon: '🔑', en: ['Sign in with Google', 'Google used to refuse sign-in in Man Browser. Now you can sign in to your Google account, and with it to YouTube, Gmail and the rest.'],
+        he: ['התחברות עם גוגל', 'גוגל סירב בעבר להתחברות ב-Man Browser. עכשיו אפשר להתחבר לחשבון גוגל, ודרכו גם ליוטיוב, ל-Gmail ולשאר השירותים.'] },
+    ],
+  },
+  {
     version: '1.4.0',
     date: '2026-11-19',
     items: [

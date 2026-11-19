@@ -24,6 +24,8 @@ const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.svg': 'image/svg+xml', '.png': 'image/png', '.json': 'application/json',
 };
+const GOOGLE_LOGIN = /^https:\/\/accounts\.google\.com\//i;
+const FIREFOX_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0) Gecko/20100101 Firefox/145.0';
 const dnsCache = new Map();
 function realDomainExists(host) {
   host = String(host || '').toLowerCase();
@@ -210,6 +212,15 @@ function setupSession(ses) {
   ses.protocol.handle('man', manHandler);
   ses.setUserAgent(app.userAgentFallback, acceptLanguages());
 
+  // Google refuses to sign in inside apps built on Electron ("This browser or app may not be secure"),
+  // but supports Firefox. On Google's sign-in pages only, Man Browser presents itself as Firefox.
+  ses.webRequest.onBeforeSendHeaders({ urls: ['https://accounts.google.com/*'] }, (d, cb) => {
+    const h = d.requestHeaders;
+    h['User-Agent'] = FIREFOX_UA;
+    for (const k of Object.keys(h)) if (/^sec-ch-ua/i.test(k)) delete h[k]; // Firefox doesn't send client hints
+    cb({ requestHeaders: h });
+  });
+
   ses.webRequest.onBeforeRequest({ urls: ['http://*/*', 'https://*/*', 'ws://*/*', 'wss://*/*'] }, (d, cb) => {
     if (store.settings.adblock && d.resourceType !== 'mainFrame' && isAd(d.url)) {
       store.blockedTotal++;
@@ -342,6 +353,14 @@ app.on('web-contents-created', (_e, wc) => {
     sendHost(wc, 'cmd', c);
   });
   if (type === 'webview') {
+    // keep navigator.userAgent in step with the headers on Google's sign-in pages
+    wc.on('did-start-navigation', (details, legacyUrl, _inPlace, legacyMain) => {
+      const url = (details && details.url) || legacyUrl;
+      const main = details && 'isMainFrame' in details ? details.isMainFrame : legacyMain;
+      if (!main || !url) return;
+      const ua = GOOGLE_LOGIN.test(url) ? FIREFOX_UA : app.userAgentFallback;
+      if (wc.getUserAgent() !== ua) wc.setUserAgent(ua);
+    });
     wc.setWindowOpenHandler(({ url, disposition }) => {
       sendHost(wc, 'open-tab', url, disposition !== 'background-tab');
       return { action: 'deny' };
