@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>manstudio.domain — Free domains</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><span class="logo">✦</span><b>manstudio</b><span class="dim">.domain</span></div>
+    <nav>
+      <a href="#mine" data-t="navMine"></a>
+      <a href="#recent" data-t="navRecent"></a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <h1 data-t="heroTitle"></h1>
+    <p class="sub" data-t="heroSub"></p>
+    <form id="search" class="search">
+      <input id="name" autocomplete="off" spellcheck="false" maxlength="42" data-tp="namePh">
+      <select id="tld"></select>
+      <button class="primary" data-t="check"></button>
+    </form>
+    <div id="result" class="result" hidden></div>
+    <div id="tlds" class="tlds"></div>
+    <p class="note" data-t="comNote"></p>
+  </section>
+
+  <section id="mine" class="card">
+    <div class="card-head">
+      <h2 data-t="mineTitle"></h2>
+      <span id="mine-count" class="dim"></span>
+    </div>
+    <div id="mine-list"></div>
+    <details class="key">
+      <summary data-t="keyTitle"></summary>
+      <p class="dim" data-t="keyText"></p>
+      <div class="row">
+        <input id="key" readonly>
+        <button id="copy-key" class="ghost" data-t="copy"></button>
+      </div>
+      <div class="row">
+        <input id="key-in" spellcheck="false" data-tp="keyPh">
+        <button id="use-key" class="ghost" data-t="useKey"></button>
+      </div>
+    </details>
+  </section>
+
+  <section id="editor" class="card" hidden>
+    <div class="card-head">
+      <h2><span data-t="editing"></span> <span id="ed-domain" class="accent"></span></h2>
+      <div class="row tight">
+        <button id="ed-visit" class="ghost" data-t="visit"></button>
+        <button id="ed-close" class="ghost" data-t="close"></button>
+      </div>
+    </div>
+    <div class="row">
+      <input id="ed-title" maxlength="120" data-tp="titlePh">
+      <select id="ed-template"></select>
+    </div>
+    <div class="split">
+      <textarea id="ed-code" spellcheck="false"></textarea>
+      <iframe id="ed-preview" sandbox="allow-scripts" title="preview"></iframe>
+    </div>
+    <div class="row end">
+      <span id="ed-status" class="dim"></span>
+      <button id="ed-delete" class="danger" data-t="delete"></button>
+      <button id="ed-save" class="primary" data-t="save"></button>
+    </div>
+  </section>
+
+  <section id="recent" class="card">
+    <h2 data-t="recentTitle"></h2>
+    <div id="recent-list" class="chips"></div>
+  </section>
+
+  <footer class="dim" data-t="footer"></footer>
+  <div id="toast" hidden></div>
+  <script src="/app.js"></script>
+</body>
+</html>

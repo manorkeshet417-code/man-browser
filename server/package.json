@@ -1,0 +1,13 @@
+{
+  "name": "manstudio-domains",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Free domains API for Man Browser (Cloudflare Worker + D1)",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "schema": "wrangler d1 execute manstudio-domains --remote --file=schema.sql"
+  },
+  "devDependencies": {
+    "wrangler": "4.20.0"
+  }
+}

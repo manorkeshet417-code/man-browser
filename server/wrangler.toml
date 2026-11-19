@@ -1,0 +1,9 @@
+name = "manstudio-domains"
+main = "src/index.js"
+compatibility_date = "2025-06-01"
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "manstudio-domains"
+database_id = "8aff7e24-f60b-4b62-a1c7-97681d1ae2c1"

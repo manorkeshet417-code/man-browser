@@ -1,0 +1,63 @@
+{
+  "name": "man-browser",
+  "productName": "Man Browser",
+  "version": "1.1.1",
+  "description": "Man Browser - a fast, private, ad-blocking web browser by Man Studio",
+  "main": "main.js",
+  "author": "Man Studio",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "icon": "electron build/make-icon.js",
+    "dist": "electron-builder --win nsis portable --publish never"
+  },
+  "devDependencies": {
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8"
+  },
+  "build": {
+    "appId": "com.manstudio.browser",
+    "productName": "Man Browser",
+    "copyright": "© Man Studio",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "extraResources": [],
+    "win": {
+      "icon": "build/icon.png",
+      "artifactName": "ManBrowser-${version}-${arch}-${target}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Man Browser",
+      "artifactName": "ManBrowser-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "ManBrowser-Portable-${version}.${ext}"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "manorkeshet417-code",
+        "repo": "man-browser",
+        "releaseType": "release"
+      }
+    ]
+  },
+  "dependencies": {
+    "electron-updater": "6.3.9"
+  }
+}

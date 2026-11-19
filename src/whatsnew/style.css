@@ -1,0 +1,38 @@
+:root {
+  --bg: #f6f4fb; --card: #ffffff; --text: #1d1b26; --dim: #6b6780; --line: #e3dff0;
+  --accent: #7c3aed; --accent-2: #db2777; --soft: #efe8fd;
+  --shadow: 0 10px 30px rgba(60, 30, 120, .10);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14121b; --card: #1e1b29; --text: #ece9f5; --dim: #a29db8; --line: #322d44;
+    --accent: #a78bfa; --accent-2: #f472b6; --soft: #2b2342; --shadow: 0 10px 30px rgba(0, 0, 0, .4);
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.6 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; }
+.dim { color: var(--dim); }
+.hero {
+  text-align: center; padding: 64px 20px 34px;
+  background: radial-gradient(900px 340px at 50% -40px, var(--soft), transparent 75%);
+}
+.badge {
+  display: inline-block; padding: 5px 14px; border-radius: 20px; font-weight: 700; font-size: 13px; color: #fff;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2)); direction: ltr; unicode-bidi: isolate;
+}
+h1 { font-size: clamp(30px, 5vw, 44px); line-height: 1.15; margin: 16px 0 8px; letter-spacing: -1px; }
+#sub { font-size: 17px; margin: 0; }
+main { max-width: 760px; margin: 0 auto; padding: 0 20px 20px; }
+.release { background: var(--card); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); padding: 22px 26px; margin-bottom: 22px; }
+.release.old { box-shadow: none; opacity: .85; }
+.rel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.rel-head h2 { margin: 0; font-size: 20px; direction: ltr; unicode-bidi: isolate; }
+.rel-head .tag { font-size: 12px; font-weight: 700; color: var(--accent); background: var(--soft); padding: 3px 10px; border-radius: 12px; }
+.item { display: flex; gap: 14px; padding: 12px 0; border-top: 1px solid var(--line); }
+.item:first-of-type { border-top: 0; }
+.item .ic { flex: none; width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; font-size: 20px; background: var(--soft); }
+.item b { display: block; }
+.item span { color: var(--dim); }
+footer { text-align: center; padding: 8px 20px 40px; font-size: 13px; }

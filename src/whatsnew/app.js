@@ -1,0 +1,82 @@
+'use strict';
+/* "What's new" page. Opens by itself once after every update.
+   To add a release: put a new entry at the TOP of CHANGELOG and bump "version" in package.json. */
+const CHANGELOG = [
+  {
+    version: '1.1.1',
+    date: '2026-11-19',
+    items: [
+      { icon: '🔄', en: ['Automatic updates', 'Man Browser now downloads new versions by itself. When one is ready, a green “Restart to update” button appears. Or just close the browser and it installs on its own.'],
+        he: ['עדכונים אוטומטיים', 'Man Browser מוריד עכשיו גרסאות חדשות לבד. כשגרסה מוכנה, מופיע כפתור ירוק "הפעלה מחדש לעדכון". אפשר גם פשוט לסגור את הדפדפן והעדכון יותקן לבד.'] },
+    ],
+  },
+  {
+    version: '1.1.0',
+    date: '2026-11-19',
+    items: [
+      { icon: '🌐', en: ['17 more free domain endings', 'Now you can get .net, .org, .io, .app, .dev, .xyz, .site, .online, .game, .me, .blog, .art, .club, .store and .tech, plus .man and .web, which exist only in Man Browser.'],
+        he: ['17 סיומות דומיין חינמיות חדשות', 'עכשיו אפשר לקחת ‎.net, ‎.org, ‎.io, ‎.app, ‎.dev, ‎.xyz, ‎.site, ‎.online, ‎.game, ‎.me, ‎.blog, ‎.art, ‎.club, ‎.store ו-‎.tech, וגם ‎.man ו-‎.web שקיימות רק ב-Man Browser.'] },
+      { icon: '⚙️', en: ['Settings button and language choice', 'A Settings button sits next to the menu. Language is the first option, and everything starts in English.'],
+        he: ['כפתור הגדרות ובחירת שפה', 'כפתור ההגדרות נמצא ליד התפריט. השפה היא האפשרות הראשונה, והכול מתחיל באנגלית.'] },
+      { icon: '🏠', en: ['Starts on the new tab page', 'Man Browser no longer reopens your old tabs (like YouTube) by itself. Want it back? Settings → On startup.'],
+        he: ['נפתח בדף הכרטיסייה החדשה', 'Man Browser כבר לא פותח לבד את הכרטיסיות הישנות (כמו יוטיוב). רוצים את זה בחזרה? הגדרות ← בפתיחה.'] },
+      { icon: '🎁', en: ['This page', 'After every update, this page shows what changed.'],
+        he: ['הדף הזה', 'אחרי כל עדכון, הדף הזה מראה מה השתנה.'] },
+    ],
+  },
+  {
+    version: '1.0.0',
+    date: '2026-11-19',
+    items: [
+      { icon: '🚀', en: ['Man Browser is here', 'Tabs, a smart address bar, bookmarks, history, downloads, incognito windows and an ad & tracker blocker.'],
+        he: ['Man Browser יצא', 'כרטיסיות, שורת כתובת חכמה, סימניות, היסטוריה, הורדות, גלישה בסתר וחוסם פרסומות ומעקבים.'] },
+      { icon: '✦', en: ['Free domains at manstudio.domain', 'Claim a free name and build your own site right inside the browser.'],
+        he: ['דומיינים בחינם ב-manstudio.domain', 'לוקחים שם בחינם ובונים אתר משלכם ישר בתוך הדפדפן.'] },
+    ],
+  },
+];
+
+const TEXT = {
+  en: { title: 'What’s new in Man Browser', sub: 'Here’s everything that changed in this update.', latest: 'New', foot: 'You can open this page any time from the ⋮ menu → What’s new.' },
+  he: { title: 'מה חדש ב-Man Browser', sub: 'כל מה שהשתנה בעדכון הזה.', latest: 'חדש', foot: 'אפשר לפתוח את הדף הזה בכל זמן מהתפריט ⋮ ← מה חדש.' },
+};
+const lang = document.documentElement.lang === 'he' ? 'he' : 'en';
+document.documentElement.dir = lang === 'he' ? 'rtl' : 'ltr';
+const L = TEXT[lang];
+const current = document.body.dataset.version && !document.body.dataset.version.includes('{') ? document.body.dataset.version : CHANGELOG[0].version;
+
+document.getElementById('badge').textContent = 'v' + current;
+document.getElementById('title').textContent = L.title;
+document.getElementById('sub').textContent = L.sub;
+document.getElementById('foot').textContent = L.foot;
+
+const list = document.getElementById('list');
+const fmt = d => new Date(d + 'T12:00:00').toLocaleDateString(lang === 'he' ? 'he-IL' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' });
+for (const rel of CHANGELOG) {
+  const sec = document.createElement('section');
+  sec.className = 'release' + (rel.version === current ? '' : ' old');
+  const head = document.createElement('div');
+  head.className = 'rel-head';
+  const h = document.createElement('h2');
+  h.textContent = 'v' + rel.version;
+  head.append(h);
+  const right = document.createElement('div');
+  if (rel.version === current) { const tag = document.createElement('span'); tag.className = 'tag'; tag.textContent = L.latest; right.append(tag, ' '); }
+  const date = document.createElement('span'); date.className = 'dim'; date.textContent = fmt(rel.date);
+  right.append(date);
+  head.append(right);
+  sec.append(head);
+  for (const it of rel.items) {
+    const [name, desc] = it[lang] || it.en;
+    const row = document.createElement('div');
+    row.className = 'item';
+    const ic = document.createElement('div'); ic.className = 'ic'; ic.textContent = it.icon;
+    const tx = document.createElement('div');
+    const b = document.createElement('b'); b.textContent = name;
+    const s = document.createElement('span'); s.textContent = desc;
+    tx.append(b, s);
+    row.append(ic, tx);
+    sec.append(row);
+  }
+  list.append(sec);
+}

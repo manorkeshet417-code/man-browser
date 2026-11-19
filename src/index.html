@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src * data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'">
+  <title>Man Browser</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header id="titlebar">
+    <div id="incog-badge" hidden><span data-icon="mask"></span><span data-i18n="incogTitle"></span></div>
+    <div id="tabs"></div>
+    <button id="newtab-btn" class="icon-btn" data-icon="plus" data-i18n-title="newTab"></button>
+    <div class="drag-fill"></div>
+  </header>
+
+  <nav id="toolbar">
+    <button id="back" class="icon-btn" data-icon="back" data-i18n-title="back"></button>
+    <button id="forward" class="icon-btn" data-icon="forward" data-i18n-title="forward"></button>
+    <button id="reload" class="icon-btn" data-icon="reload" data-i18n-title="reload"></button>
+    <button id="home" class="icon-btn" data-icon="home" data-i18n-title="home"></button>
+    <div id="omni">
+      <span id="lock" data-icon="search"></span>
+      <input id="addr" spellcheck="false" autocomplete="off" data-i18n-ph="addrPh">
+      <button id="zoom-badge" class="mini" hidden></button>
+      <button id="shield" class="mini"><span data-icon="shield"></span><b id="shield-count"></b></button>
+      <button id="star" class="mini" data-icon="star"></button>
+      <div id="suggest" hidden></div>
+    </div>
+    <button id="dl-btn" class="icon-btn" data-icon="download" data-i18n-title="downloads"><i id="dl-badge" hidden></i></button>
+    <button id="hist-btn" class="icon-btn" data-icon="history" data-i18n-title="history"></button>
+    <button id="bm-btn" class="icon-btn" data-icon="bookmarks" data-i18n-title="bookmarks"></button>
+    <button id="update-btn" class="update-btn" hidden><span data-icon="reload"></span><span data-i18n="updateBtn"></span></button>
+    <button id="settings-btn" class="icon-btn" data-icon="gear" data-i18n-title="settings"></button>
+    <button id="menu-btn" class="icon-btn" data-icon="menu" data-i18n-title="menu"></button>
+  </nav>
+
+  <div id="bookmarks-bar"></div>
+
+  <main id="content">
+    <div id="views"></div>
+
+    <section id="newtab" hidden>
+      <div id="nt-clock"></div>
+      <div id="nt-greet"></div>
+      <form id="nt-form"><span data-icon="search"></span><input id="nt-search" autocomplete="off" spellcheck="false" data-i18n-ph="searchPh"></form>
+      <div id="nt-incog" hidden>
+        <span class="nt-mask" data-icon="mask"></span>
+        <h3 data-i18n="incogTitle"></h3>
+        <p data-i18n="incogText"></p>
+      </div>
+      <div id="nt-mv">
+        <h3 data-i18n="mostVisited"></h3>
+        <div id="nt-tiles"></div>
+      </div>
+      <div id="nt-stats"><span data-icon="shield"></span><span id="nt-stats-text"></span></div>
+    </section>
+
+    <section id="error" hidden>
+      <span data-icon="warn"></span>
+      <h2 id="err-title"></h2>
+      <div id="err-host"></div>
+      <div id="err-desc"></div>
+      <button id="err-retry" class="btn"></button>
+    </section>
+
+    <div id="findbar" hidden>
+      <input id="find-input" spellcheck="false" data-i18n-ph="findPh">
+      <span id="find-count"></span>
+      <button id="find-prev" class="icon-btn sm" data-icon="up"></button>
+      <button id="find-next" class="icon-btn sm" data-icon="down"></button>
+      <button id="find-close" class="icon-btn sm" data-icon="close"></button>
+    </div>
+
+    <aside id="panel" hidden>
+      <header><h2 id="panel-title"></h2><button id="panel-close" class="icon-btn sm" data-icon="close"></button></header>
+      <div id="panel-body"></div>
+    </aside>
+
+    <div id="status" hidden></div>
+  </main>
+
+  <div id="toast" hidden></div>
+  <script src="renderer.js"></script>
+</body>
+</html>
