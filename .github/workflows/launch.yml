@@ -1,0 +1,33 @@
+# Backup for the Man Browser launch: publishes the newest draft release on 21 Nov 2026 at 19:00 Israel time
+# (17:00 UTC), in case the PC's scheduled task didn't run. GitHub may start scheduled runs a few minutes late,
+# so it also tries again at 17:20 and 17:45. Safe to run more than once. Can also be started by hand.
+name: Launch (open downloads)
+
+on:
+  schedule:
+    - cron: '0 17 21 11 *'
+    - cron: '20 17 21 11 *'
+    - cron: '45 17 21 11 *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish the newest draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          # only for the 2026 launch, never in later years
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "$(date -u +%Y)" != "2026" ]; then
+            echo "Not 2026: nothing to do."; exit 0
+          fi
+          tag=$(gh release list --repo "$REPO" --limit 50 --json tagName,isDraft,createdAt \
+                --jq '[.[] | select(.isDraft)] | sort_by(.createdAt) | last | .tagName // empty')
+          if [ -z "$tag" ]; then echo "No draft release: downloads are already open."; exit 0; fi
+          gh release edit "$tag" --repo "$REPO" --draft=false --latest
+          echo "Published $tag: downloads are open."
