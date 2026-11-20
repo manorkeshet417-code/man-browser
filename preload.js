@@ -32,4 +32,5 @@ contextBridge.exposeInMainWorld('mb', {
   newRecoveryCode: () => ipcRenderer.invoke('account:recovery-new'),
   changePassword: (oldPassword, newPassword) => ipcRenderer.invoke('account:change-password', oldPassword, newPassword),
   mailUnread: () => ipcRenderer.invoke('mail:unread'),
+  manSearch: q => ipcRenderer.invoke('man-search', q),
 });

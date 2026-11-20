@@ -108,6 +108,7 @@ const I18N = {
     aboutText: 'Man Browser {n} — by Man Studio. Chromium engine.',
     internalSite: 'Free Man Studio domain — works inside Man Browser', freeDomains: 'Free domains (manstudio.domain)',
     hubMenu: 'All of Man Browser (browser.domain)',
+    siteResults: 'Man Browser sites in search results', siteResultsHint: 'On Google, Bing and others, matching Man Browser sites appear at the top',
   },
   he: {
     newTab: 'כרטיסייה חדשה', back: 'אחורה', forward: 'קדימה', reload: 'רענון', stop: 'עצירה', home: 'דף הבית',
@@ -157,6 +158,7 @@ const I18N = {
     aboutText: 'Man Browser {n} — מבית Man Studio. מנוע Chromium.',
     internalSite: 'דומיין חינמי של Man Studio — עובד בתוך Man Browser', freeDomains: 'דומיינים בחינם (manstudio.domain)',
     hubMenu: 'כל Man Browser (browser.domain)',
+    siteResults: 'אתרי Man Browser בתוצאות החיפוש', siteResultsHint: 'בגוגל, Bing ואחרים, אתרי Man Browser שמתאימים מופיעים למעלה',
   },
 };
 
@@ -395,6 +397,7 @@ function ensureWebview(tab) {
     if (!tab.ready) { tab.ready = true; tab.wcid = wv.getWebContentsId(); }
     applyZoom(tab);
     if (isActive()) updateToolbar();
+    injectManSites(tab);
   });
   wv.addEventListener('did-start-loading', () => {
     tab.loading = true; tab.error = null; renderTab(tab);
@@ -415,6 +418,7 @@ function ensureWebview(tab) {
   wv.addEventListener('did-navigate-in-page', e => {
     if (!e.isMainFrame) return;
     tab.url = e.url;
+    if (tab.ready) injectManSites(tab); // Google sometimes changes the search without loading a new page
     if (!INCOG && isWeb(e.url)) api.historyAdd(e.url, tab.title);
     if (isActive()) updateToolbar();
     saveSession();
@@ -452,6 +456,102 @@ function ensureWebview(tab) {
   wv.addEventListener('close', () => closeTab(tab));
   $('#views').appendChild(wv);
   return wv;
+}
+
+/* ===== Man Browser sites on top of Google / Bing / DuckDuckGo / Brave / Yahoo results (only inside Man Browser) ===== */
+function searchQueryOf(u) {
+  try {
+    const x = new URL(u), h = x.hostname.replace(/^www\./, ''), p = x.searchParams;
+    if (/^google\.[a-z.]+$/.test(h) && x.pathname === '/search' && !p.get('tbm') && !p.get('udm')) return p.get('q'); // web results only
+    if (h === 'bing.com' && x.pathname === '/search') return p.get('q');
+    if (h === 'duckduckgo.com' && x.pathname === '/' && p.get('q') && (!p.get('ia') || p.get('ia') === 'web')) return p.get('q');
+    if (h === 'search.brave.com' && x.pathname === '/search') return p.get('q');
+    if (h === 'search.yahoo.com' && x.pathname.startsWith('/search')) return p.get('p');
+  } catch { /* not a URL */ }
+  return null;
+}
+async function injectManSites(tab) {
+  if (S.settings.siteResults === false || !tab.wv || !tab.ready) return;
+  const url = tab.url, q = searchQueryOf(url);
+  if (!q) return;
+  const results = await api.manSearch(q);
+  if (tab.url !== url || !tab.wv) return; // the tab moved on meanwhile
+  const he = S.settings.lang === 'he';
+  const data = {
+    results: results.map(r => ({ url: `man://${r.domain}/${r.path || ''}`, show: r.domain + (r.path ? '/' + r.path : ''), title: r.title || r.domain, snippet: r.snippet || '', man: r.domain.endsWith('.man') })),
+    title: he ? 'אתרי Man Browser' : 'Man Browser sites',
+    note: he ? 'מוצג רק ב-Man Browser' : 'Only in Man Browser',
+    more: he ? 'עוד ב-Man Search ←' : 'More on Man Search →',
+    moreUrl: 'man://search.domain/?q=' + encodeURIComponent(q),
+    rtl: he,
+  };
+  // Runs inside the search page. Everything is built with textContent (titles come from users' sites).
+  const code = `(function (data) {
+    const old = document.getElementById('man-browser-sites'); if (old) old.remove();
+    if (!data.results.length) return;
+    const host = document.createElement('div');
+    host.id = 'man-browser-sites';
+    const root = host.attachShadow({ mode: 'open' });
+    // dark page? read the first background that isn't transparent (Bing's body is transparent = white)
+    const bgOf = e => { const m = (getComputedStyle(e).backgroundColor.match(/[\\d.]+/g) || []).map(Number); return m.length >= 3 && (m.length < 4 || m[3] > 0) ? m : null; };
+    const bg = bgOf(document.body) || bgOf(document.documentElement) || [255, 255, 255];
+    const dark = (0.299 * bg[0] + 0.587 * bg[1] + 0.114 * bg[2]) < 128;
+    const st = document.createElement('style');
+    st.textContent = \`
+      :host { all: initial; display: block; }
+      .box { font: 14px/1.5 "Segoe UI", Arial, sans-serif; max-width: 652px; margin: 4px 0 24px; padding: 16px 18px 6px; border-radius: 16px;
+        color: \${dark ? '#ece9f5' : '#1d1b26'}; background: \${dark ? '#211b33' : '#f7f3ff'}; border: 1px solid \${dark ? '#3b2f5c' : '#e2d8fb'}; }
+      .head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+      .logo { width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; color: #fff; font-size: 12px; background: linear-gradient(135deg, #7c3aed, #db2777); }
+      .title { font-weight: 700; font-size: 15px; }
+      .note { margin-inline-start: auto; font-size: 12px; opacity: .7; }
+      .res { margin: 0 0 14px; }
+      .url { display: block; font-size: 12.5px; color: \${dark ? '#5eead4' : '#0f766e'}; direction: ltr; text-align: start; }
+      .badge { font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 9px; margin-inline-start: 6px; color: #fff; background: linear-gradient(135deg, #7c3aed, #db2777); }
+      a.t { display: inline-block; font-size: 19px; color: \${dark ? '#c4b5fd' : '#5b21b6'}; text-decoration: none; margin: 1px 0 2px; }
+      a.t:hover { text-decoration: underline; }
+      .snip { font-size: 13.5px; opacity: .85; }
+      .more { display: inline-block; margin: 0 0 10px; font-size: 13px; color: \${dark ? '#c4b5fd' : '#6d28d9'}; text-decoration: none; }
+    \`;
+    const box = document.createElement('div');
+    box.className = 'box';
+    box.dir = data.rtl ? 'rtl' : 'ltr';
+    const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+    const head = mk('div', 'head');
+    head.append(mk('span', 'logo', '✦'), mk('span', 'title', data.title), mk('span', 'note', data.note));
+    box.append(head);
+    for (const r of data.results) {
+      const res = mk('div', 'res');
+      const u = mk('span', 'url', r.show);
+      if (r.man) u.append(mk('span', 'badge', 'Man Studio'));
+      const a = mk('a', 't', r.title); a.href = r.url;
+      const sn = mk('div', 'snip');
+      String(r.snippet).split(/(\\[\\[[^\\]]*\\]\\])/).forEach(part => {
+        if (part.startsWith('[[')) sn.append(mk('b', '', part.slice(2, -2))); else sn.append(document.createTextNode(part));
+      });
+      res.append(u, a, sn);
+      box.append(res);
+    }
+    const more = mk('a', 'more', data.more); more.href = data.moreUrl;
+    box.append(more);
+    root.append(st, box);
+    // Put it where the results start; the page may still be building, so try a few times.
+    let tries = 0;
+    (function place() {
+      // the very top of the results, above the ads: Google #center_col, Bing #b_results, DuckDuckGo mainline, Brave, Yahoo
+      const spots = [['#center_col', 'prepend'], ['#b_content main', 'prepend'], ['#b_results', 'prepend'], ['[data-testid="mainline"]', 'prepend'], ['#links', 'before'],
+        ['#results', 'before'], ['#web', 'prepend'], ['#rso', 'before']];
+      for (const [sel, how] of spots) {
+        const t = document.querySelector(sel);
+        if (!t) continue;
+        if (how === 'before') t.parentNode.insertBefore(host, t); else t.insertBefore(host, t.firstChild);
+        return;
+      }
+      if (++tries < 15) setTimeout(place, 300);
+      else document.body.insertBefore(host, document.body.firstChild);
+    })();
+  })(${JSON.stringify(data)});`;
+  tab.wv.executeJavaScript(code).catch(() => {});
 }
 
 function toggleMute(tab) {
@@ -942,6 +1042,7 @@ function renderSettings(body) {
   row(t('theme'), select([['system', t('themeSystem')], ['light', t('themeLight')], ['dark', t('themeDark')]], S.settings.theme, v => { set('theme', v); applyTheme(); }));
   row(t('adblock'), toggle(S.settings.adblock, v => { set('adblock', v); updateShield(); }), t('blockedTotalN', blockedTotal.toLocaleString(locale())));
   row(t('showBar'), toggle(S.settings.showBar, v => { set('showBar', v); renderBar(); }));
+  row(t('siteResults'), toggle(S.settings.siteResults !== false, v => set('siteResults', v)), t('siteResultsHint'));
   const cb = el('button', 'btn ghost', t('clearBtn'));
   cb.addEventListener('click', async () => { await api.clearData(); toast(t('cleared')); });
   row(t('clearData'), cb, t('clearDataHint'));

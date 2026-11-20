@@ -116,6 +116,7 @@ const DATA_FILE = path.join(app.getPath('userData'), 'browser-data.json');
 const DEFAULT_SETTINGS = {
   engine: 'google', homepage: '', theme: 'system', lang: 'en',
   adblock: true, showBar: true,
+  siteResults: true, // Man Browser sites on top of Google/Bing/... results
   startup: 'newtab', // 'newtab' = open on the new tab page, 'restore' = reopen the tabs from last time
 };
 const DEFAULT_BOOKMARKS = [
@@ -609,6 +610,14 @@ async function checkMail() {
 }
 setInterval(checkMail, 2 * 60e3);
 ipcMain.handle('mail:unread', () => mailUnread);
+// Man Browser sites that match a search: shown at the top of Google/Bing/... results, only inside Man Browser
+ipcMain.handle('man-search', async (_e, q) => {
+  try {
+    const r = await net.fetch(`${DOMAINS_API}/search?q=${encodeURIComponent(String(q || '').slice(0, 200))}`, { cache: 'no-store' });
+    const rows = await r.json();
+    return Array.isArray(rows) ? rows.slice(0, 5) : [];
+  } catch { return []; }
+});
 ipcMain.on('mail:check', () => checkMail());
 ipcMain.handle('account:reset', (_e, username, code, password) => accountSignIn('reset', username, code, password));
 ipcMain.handle('account:recovery-new', async () => {

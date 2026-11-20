@@ -3,6 +3,14 @@
    To add a release: put a new entry at the TOP of CHANGELOG and bump "version" in package.json. */
 const CHANGELOG = [
   {
+    version: '1.8.0',
+    date: '2026-11-20',
+    items: [
+      { icon: '🔝', en: ['Man Browser sites on top of Google', 'When you search on Google, Bing, DuckDuckGo, Brave or Yahoo, Man Browser sites that match show up first, at the very top. Only Man Browser shows them. Don’t want it? Settings → “Man Browser sites in search results”.'],
+        he: ['אתרי Man Browser בראש גוגל', 'כשמחפשים בגוגל, Bing, DuckDuckGo, Brave או Yahoo, אתרי Man Browser שמתאימים מופיעים ראשונים, הכי למעלה. רק Man Browser מראה אותם. לא רוצים? הגדרות ← "אתרי Man Browser בתוצאות החיפוש".'] },
+    ],
+  },
+  {
     version: '1.7.0',
     date: '2026-11-20',
     items: [
