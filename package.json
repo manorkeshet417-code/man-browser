@@ -1,7 +1,7 @@
 {
   "name": "man-browser",
   "productName": "Man Browser",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "Man Browser - a fast, private, ad-blocking web browser by Man Studio",
   "main": "main.js",
   "author": "Man Studio",

@@ -62,6 +62,18 @@ const TEXT = {
     ph_links: 'My YouTube | https://youtube.com\nMy game | man://mygame.fun', ph_cards: 'Fast | Loads in a second\nFree | Costs nothing',
     hint_lines: 'One per line. Use | between the two parts.',
     footer: 'manstudio.domain · by Man Studio · Free domains work only inside Man Browser',
+    blocked: '{d} was removed by Man Studio and can’t be registered.',
+    agree: 'By getting a domain you agree to the Terms of Use: no scams, malware, stolen content or anything illegal.',
+    reportLink: 'Report a site', terms: 'Terms of Use', privacy: 'Privacy',
+    reportTitle: 'Report a site', reportText: 'Tell Man Studio about a free site that is a scam, has malware, uses your work without permission, or breaks the rules. Man Studio reviews every report.',
+    reportDomainPh: 'Site, e.g. something.fun', reportDetailsPh: 'What’s wrong? (optional, but it helps)', reportSend: 'Send report',
+    reason: 'What’s the problem?', r_scam: 'Scam or fake login page', r_malware: 'Virus or harmful download', r_copyright: 'Uses my work without permission',
+    r_hate: 'Hate, bullying or threats', r_adult: 'Adult content', r_illegal: 'Something else illegal', r_other: 'Other',
+    reportSent: 'Thanks! Man Studio will look at it.', reportNoSite: 'There’s no free site called {d}.', reportTooMany: 'You sent a lot of reports today. Try again tomorrow.',
+    reportsTitle: 'Reports (Man Studio only)', noReports: 'No open reports 🎉', reportsN: '{n} sites',
+    nReports: '{n} reports', open: 'Open', dismiss: 'Keep site', remove: 'Remove site',
+    confirmRemove: 'Remove {d} and block the name? This deletes the whole site and can’t be undone.',
+    removed: '{d} was removed', dismissed: 'Reports closed', removePh: 'Remove any site, e.g. bad.fun', removeAny: 'Remove',
   },
   he: {
     navMine: 'הדומיינים שלי', navRecent: 'אתרים חדשים', heroTitle: 'דומיין בחינם. אתר בכמה שניות.',
@@ -105,6 +117,18 @@ const TEXT = {
     ph_links: 'היוטיוב שלי | https://youtube.com\nהמשחק שלי | man://mygame.fun', ph_cards: 'מהיר | נטען בשנייה\nחינם | לא עולה כלום',
     hint_lines: 'אחד בכל שורה. שמים | בין שני החלקים.',
     footer: 'manstudio.domain · מבית Man Studio · הדומיינים החינמיים עובדים רק בתוך Man Browser',
+    blocked: 'Man Studio הסירה את {d}, ואי אפשר לרשום אותו.',
+    agree: 'כשלוקחים דומיין מסכימים לתנאי השימוש: בלי הונאות, וירוסים, תוכן גנוב או משהו לא חוקי.',
+    reportLink: 'דיווח על אתר', terms: 'תנאי שימוש', privacy: 'פרטיות',
+    reportTitle: 'דיווח על אתר', reportText: 'ספרו ל-Man Studio על אתר חינמי שהוא הונאה, מפיץ וירוסים, משתמש ביצירה שלכם בלי רשות או עובר על הכללים. Man Studio בודקת כל דיווח.',
+    reportDomainPh: 'האתר, למשל something.fun', reportDetailsPh: 'מה הבעיה? (לא חובה, אבל זה עוזר)', reportSend: 'שליחת דיווח',
+    reason: 'מה הבעיה?', r_scam: 'הונאה או דף כניסה מזויף', r_malware: 'וירוס או הורדה מזיקה', r_copyright: 'משתמש ביצירה שלי בלי רשות',
+    r_hate: 'שנאה, בריונות או איומים', r_adult: 'תוכן למבוגרים', r_illegal: 'משהו אחר לא חוקי', r_other: 'אחר',
+    reportSent: 'תודה! Man Studio תבדוק את זה.', reportNoSite: 'אין אתר חינמי בשם {d}.', reportTooMany: 'שלחת הרבה דיווחים היום. אפשר לנסות שוב מחר.',
+    reportsTitle: 'דיווחים (רק Man Studio)', noReports: 'אין דיווחים פתוחים 🎉', reportsN: '{n} אתרים',
+    nReports: '{n} דיווחים', open: 'פתיחה', dismiss: 'להשאיר', remove: 'להסיר את האתר',
+    confirmRemove: 'להסיר את {d} ולחסום את השם? כל האתר יימחק ואי אפשר לבטל.',
+    removed: '{d} הוסר', dismissed: 'הדיווחים נסגרו', removePh: 'הסרת כל אתר, למשל bad.fun', removeAny: 'הסרה',
   },
 };
 // The language follows the browser's Settings (main.js writes it into <html lang>); English by default.
@@ -280,10 +304,12 @@ async function check() {
       $('#r-visit').onclick = () => goTo(d);
     } else if (st === 'reserved') setResult('bad', `<b>${esc(t('reserved', { d }))}</b>`);
     else if (st === 'dev_only') setResult('bad', `<b>${esc(t('devOnly', { d: d.split('.').slice(1).join('.') }))}</b>`);
+    else if (st === 'blocked') setResult('bad', `<b>${esc(t('blocked', { d }))}</b>`);
     else if (st !== 'ok') setResult('bad', `<span>${esc(t('invalid'))}</span>`);
     else if (dnsRes.exists) setResult('bad', `<span>${esc(t('real', { d }))}</span>`);
     else {
-      setResult('ok', `<b>✓ ${esc(t('available', { d }))}</b><button class="primary" id="r-reg">${esc(t('register'))}</button>`);
+      setResult('ok', `<b>✓ ${esc(t('available', { d }))}</b><button class="primary" id="r-reg">${esc(t('register'))}</button>` +
+        `<small class="agree">${esc(t('agree'))} <a href="${TERMS_URL()}">${esc(t('terms'))}</a></small>`);
       $('#r-reg').onclick = () => register(d);
     }
   } catch { setResult('bad', `<span>${esc(t('error'))}</span>`); }
@@ -301,6 +327,7 @@ async function register(d) {
     } else if (st === 'limit') setResult('bad', `<span>${esc(t('limit'))}</span>`);
     else if (st === 'taken') setResult('bad', `<b>${esc(t('taken', { d }))}</b>`);
     else if (st === 'dev_only') setResult('bad', `<b>${esc(t('devOnly', { d: d.split('.').slice(1).join('.') }))}</b>`);
+    else if (st === 'blocked') setResult('bad', `<b>${esc(t('blocked', { d }))}</b>`);
     else setResult('bad', `<span>${esc(t('invalid'))}</span>`);
   } catch { setResult('bad', `<span>${esc(t('error'))}</span>`); }
 }
@@ -637,6 +664,83 @@ $('#use-key').onclick = () => {
   loadMine();
 };
 
+/* ---------- legal pages (on the public website) ---------- */
+const SITE = 'https://manorkeshet417-code.github.io/man-browser/';
+const TERMS_URL = () => SITE + (lang === 'he' ? 'terms-he.html' : 'terms.html');
+const PRIVACY_URL = () => SITE + (lang === 'he' ? 'privacy-he.html' : 'privacy.html');
+$('#f-terms').href = TERMS_URL();
+$('#f-privacy').href = PRIVACY_URL();
+
+/* ---------- report a site (anyone) ---------- */
+const REASONS = ['scam', 'malware', 'copyright', 'hate', 'adult', 'illegal', 'other'];
+function showReport(domain) {
+  const sel = $('#report-reason');
+  sel.innerHTML = `<option value="" disabled selected>${esc(t('reason'))}</option>` +
+    REASONS.map(r => `<option value="${r}">${esc(t('r_' + r))}</option>`).join('');
+  $('#report-domain').value = domain || '';
+  $('#report').hidden = false;
+  $('#report').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  (domain ? sel : $('#report-domain')).focus();
+}
+$('#f-report').onclick = e => { e.preventDefault(); showReport(''); };
+$('#report-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const d = $('#report-domain').value.trim().toLowerCase().replace(/^man:\/\/|^https?:\/\//, '').split('/')[0];
+  const reason = $('#report-reason').value;
+  if (!d || !reason) return;
+  const btn = e.submitter; if (btn) btn.disabled = true;
+  try {
+    const r = await rpc('mb_report', { p_domain: d, reason, details: $('#report-details').value, p_session: account && account.session });
+    if (r.ok) { toast(t('reportSent')); $('#report-details').value = ''; $('#report').hidden = true; }
+    else if (r.error === 'no_site') toast(t('reportNoSite', { d }));
+    else if (r.error === 'too_many') toast(t('reportTooMany'));
+    else toast(t('error'));
+  } catch { toast(t('error')); }
+  if (btn) btn.disabled = false;
+});
+
+/* ---------- reports panel (Man Studio only) ---------- */
+async function loadReports() {
+  if (!isDev()) return;
+  $('#reports').hidden = false;
+  const box = $('#reports-list');
+  let r;
+  try { r = await rpc('dev_reports', { token: account.session }); } catch { box.textContent = t('error'); return; }
+  const list = (r && r.reports) || [];
+  $('#reports-count').textContent = list.length ? t('reportsN', { n: list.length }) : '';
+  box.innerHTML = list.length ? '' : `<div class="empty">${esc(t('noReports'))}</div>`;
+  for (const s of list) {
+    const row = document.createElement('div');
+    row.className = 'site report-row';
+    const reasons = String(s.reasons || '').split(',').map(x => t('r_' + x)).join(' · ');
+    const det = (s.details || []).map(x => `<li>${esc(x.details)}</li>`).join('');
+    row.innerHTML = `<div class="info"><b>${esc(s.domain)}</b> <span class="dim">${esc(t('nReports', { n: s.n }))} · ${esc(reasons)}</span>` +
+      (det ? `<ul class="dim">${det}</ul>` : '') + `</div>` +
+      `<div class="row tight"><button class="ghost" data-a="open">${esc(t('open'))}</button>` +
+      `<button class="ghost" data-a="dismiss">${esc(t('dismiss'))}</button><button class="danger" data-a="remove">${esc(t('remove'))}</button></div>`;
+    row.querySelector('[data-a=open]').onclick = () => goTo(s.domain);
+    row.querySelector('[data-a=dismiss]').onclick = async () => {
+      try { await rpc('dev_dismiss', { token: account.session, p_domain: s.domain }); toast(t('dismissed')); } catch { toast(t('error')); }
+      loadReports();
+    };
+    row.querySelector('[data-a=remove]').onclick = () => devRemove(s.domain, reasons);
+    box.append(row);
+  }
+}
+async function devRemove(d, reason) {
+  if (!confirm(t('confirmRemove', { d }))) return;
+  try {
+    const r = await rpc('dev_remove', { token: account.session, p_domain: d, reason: reason || '' });
+    toast(r.ok ? t('removed', { d }) : t('error'));
+  } catch { toast(t('error')); }
+  loadReports(); loadRecent(); loadMine();
+}
+$('#remove-form').addEventListener('submit', e => {
+  e.preventDefault();
+  const d = $('#remove-domain').value.trim().toLowerCase().replace(/^man:\/\/|^https?:\/\//, '').split('/')[0];
+  if (d) devRemove(d, 'removed by Man Studio').then(() => { $('#remove-domain').value = ''; });
+});
+
 /* ---------- start ---------- */
 $('#search').addEventListener('submit', e => { e.preventDefault(); check(); });
 applyLang();
@@ -645,7 +749,10 @@ loadRecent();
 (async () => {
   try { account = await fetch('/api/account', { cache: 'no-store' }).then(r => r.json()); } catch { account = null; }
   fillTlds();
-  const want = new URLSearchParams(location.search).get('d');
+  loadReports();
+  const q = new URLSearchParams(location.search);
+  if (q.has('report')) showReport(q.get('report'));
+  const want = q.get('d');
   const m = want && TLD_RE.exec(want);
   if (m) {
     $('#name').value = m[1].toLowerCase();

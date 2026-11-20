@@ -114,7 +114,26 @@ async function check(db, d, user) {
   const tld = d.slice(d.indexOf('.') + 1);
   if (DEV_ONLY_TLDS.has(tld) && !isDev) return 'dev_only';
   const row = await db.prepare('SELECT 1 FROM sites WHERE domain = ?').bind(d).first();
-  return row ? 'taken' : 'ok';
+  if (row) return 'taken';
+  const blocked = await db.prepare('SELECT 1 FROM blocked_domains WHERE domain = ?').bind(d).first();
+  return blocked && !isDev ? 'blocked' : 'ok';
+}
+
+/* ---------- reports: anyone can report a site; the dev (Man Studio) reviews them and can remove any site ---------- */
+const REPORT_REASONS = new Set(['scam', 'malware', 'copyright', 'hate', 'adult', 'illegal', 'other']);
+const MAX_REPORTS_PER_DAY = 20;        // per signed-in account
+const MAX_OPEN_PER_SITE = 50;          // open reports kept per site (stops flooding)
+async function removeSite(db, d) {
+  await db.batch([
+    db.prepare("DELETE FROM site_chunks WHERE domain = ? OR domain LIKE ? || '/%' OR domain LIKE ? || '#%'").bind(d, d, d),
+    db.prepare('DELETE FROM pages WHERE domain = ?').bind(d),
+    db.prepare('DELETE FROM search_idx WHERE domain = ?').bind(d),
+    db.prepare('DELETE FROM sites WHERE domain = ?').bind(d),
+  ]);
+}
+async function devFrom(db, token) {
+  const u = await userFromToken(db, token);
+  return u && u.role === 'dev' ? u : null;
 }
 
 /* ---------- site storage: small sites in sites.html, big ones split into site_chunks rows ---------- */
@@ -403,6 +422,8 @@ const RPC = {
     await db.batch([
       db.prepare('UPDATE mails SET deleted = 1 WHERE id = ? AND to_uname = ?').bind(id, u.uname),
       db.prepare('UPDATE mails SET sender_deleted = 1 WHERE id = ? AND from_uname = ?').bind(id, u.uname),
+      // once nobody keeps the message (or it came from the system), it's erased from the server for real
+      db.prepare('DELETE FROM mails WHERE id = ? AND deleted = 1 AND (sender_deleted = 1 OR from_uname IS NULL)').bind(id),
     ]);
     return { ok: true };
   },
@@ -468,13 +489,75 @@ const RPC = {
     if (!tokenOk(a.p_token)) return false;
     const d = norm(a.p_domain);
     if (await ownsSite(db, d, a.p_token) !== 'ok') return false;
-    await db.batch([
-      db.prepare("DELETE FROM site_chunks WHERE domain = ? OR domain LIKE ? || '/%' OR domain LIKE ? || '#%'").bind(d, d, d),
-      db.prepare('DELETE FROM pages WHERE domain = ?').bind(d),
-      db.prepare('DELETE FROM search_idx WHERE domain = ?').bind(d),
-      db.prepare('DELETE FROM sites WHERE domain = ?').bind(d),
-    ]);
+    await removeSite(db, d);
     return true;
+  },
+
+  /* ---------- reports ---------- */
+  async mb_report(db, a) {
+    const d = norm(a.p_domain);
+    const reason = String(a.reason || '');
+    const details = String(a.details ?? '').trim().slice(0, 2000);
+    if (!REPORT_REASONS.has(reason)) return { error: 'bad_reason' };
+    if (!await db.prepare('SELECT 1 FROM sites WHERE domain = ?').bind(d).first()) return { error: 'no_site' };
+    const u = await userFromToken(db, a.p_session);
+    if (u) {
+      const { n } = await db.prepare('SELECT COUNT(*) AS n FROM reports WHERE reporter = ? AND created_at > ?')
+        .bind(u.uname, new Date(Date.now() - 864e5).toISOString()).first();
+      if (n >= MAX_REPORTS_PER_DAY) return { error: 'too_many' };
+    }
+    const { n: open } = await db.prepare("SELECT COUNT(*) AS n FROM reports WHERE domain = ? AND status = 'open'").bind(d).first();
+    if (open >= MAX_OPEN_PER_SITE) return { ok: true }; // already reported plenty: Man Studio will see it
+    await db.prepare('INSERT INTO reports (domain, reason, details, reporter, created_at) VALUES (?, ?, ?, ?, ?)')
+      .bind(d, reason, details, u ? u.uname : null, now()).run();
+    if (open === 0) { // tell Man Studio once per site, not for every report
+      await systemMail(db, DEV_UNAME, `Report: ${d} (${reason})`,
+        `Someone reported ${d}.\n\nReason: ${reason}\n${details ? `Details: ${details}\n` : ''}\nReview it on manstudio.domain → Reports.`);
+    }
+    return { ok: true };
+  },
+
+  // dev only: open reports, one row per site
+  async dev_reports(db, a) {
+    if (!await devFrom(db, a.token)) return { error: 'not_dev' };
+    const { results } = await db.prepare(`SELECT r.domain, COUNT(*) AS n, MAX(r.created_at) AS last,
+        GROUP_CONCAT(DISTINCT r.reason) AS reasons, (SELECT s.title FROM sites s WHERE s.domain = r.domain) AS title
+      FROM reports r WHERE r.status = 'open' GROUP BY r.domain ORDER BY n DESC, last DESC LIMIT 100`).all();
+    for (const row of results) {
+      const { results: det } = await db.prepare("SELECT reason, details, reporter, created_at FROM reports WHERE domain = ? AND status = 'open' AND details <> '' ORDER BY id DESC LIMIT 5")
+        .bind(row.domain).all();
+      row.details = det;
+    }
+    return { ok: true, reports: results };
+  },
+
+  // dev only: close a site's reports without removing it
+  async dev_dismiss(db, a) {
+    if (!await devFrom(db, a.token)) return { error: 'not_dev' };
+    await db.prepare("UPDATE reports SET status = 'dismissed' WHERE domain = ? AND status = 'open'").bind(norm(a.p_domain)).run();
+    return { ok: true };
+  },
+
+  // dev only: remove any site; the name is blocked so it can't be taken again (unless block is false)
+  async dev_remove(db, a) {
+    if (!await devFrom(db, a.token)) return { error: 'not_dev' };
+    const d = norm(a.p_domain);
+    if (!DOMAIN_RE.test(d)) return { error: 'invalid' };
+    const existed = !!await db.prepare('SELECT 1 FROM sites WHERE domain = ?').bind(d).first();
+    await removeSite(db, d);
+    await db.prepare("UPDATE reports SET status = 'removed' WHERE domain = ? AND status = 'open'").bind(d).run();
+    if (a.block !== false) {
+      await db.prepare('INSERT OR REPLACE INTO blocked_domains (domain, reason, created_at) VALUES (?, ?, ?)')
+        .bind(d, String(a.reason || '').slice(0, 200), now()).run();
+    }
+    return { ok: true, existed };
+  },
+
+  // dev only: let a blocked name be registered again
+  async dev_unblock(db, a) {
+    if (!await devFrom(db, a.token)) return { error: 'not_dev' };
+    await db.prepare('DELETE FROM blocked_domains WHERE domain = ?').bind(norm(a.p_domain)).run();
+    return { ok: true };
   },
 
   async mb_sites_mine(db, a) {

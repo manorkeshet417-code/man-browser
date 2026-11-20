@@ -107,7 +107,8 @@ const I18N = {
     addedBm: 'Added to bookmarks', removedBm: 'Removed from bookmarks', downloadStarted: 'Downloading',
     aboutText: 'Man Browser {n} — by Man Studio. Chromium engine.',
     internalSite: 'Free Man Studio domain — works inside Man Browser', freeDomains: 'Free domains (manstudio.domain)',
-    hubMenu: 'All of Man Browser (browser.domain)',
+    hubMenu: 'All of Man Browser (browser.domain)', reportSite: 'Report this site…',
+    legalNote: 'By creating an account you agree to the Terms of Use and Privacy Policy.', terms: 'Terms of Use', privacy: 'Privacy Policy',
     siteResults: 'Man Browser sites in search results', siteResultsHint: 'On Google, Bing and others, matching Man Browser sites appear at the top',
   },
   he: {
@@ -157,7 +158,8 @@ const I18N = {
     addedBm: 'נוסף לסימניות', removedBm: 'הוסר מהסימניות', downloadStarted: 'מוריד',
     aboutText: 'Man Browser {n} — מבית Man Studio. מנוע Chromium.',
     internalSite: 'דומיין חינמי של Man Studio — עובד בתוך Man Browser', freeDomains: 'דומיינים בחינם (manstudio.domain)',
-    hubMenu: 'כל Man Browser (browser.domain)',
+    hubMenu: 'כל Man Browser (browser.domain)', reportSite: 'דיווח על האתר הזה…',
+    legalNote: 'כשיוצרים חשבון מסכימים לתנאי השימוש ולמדיניות הפרטיות.', terms: 'תנאי שימוש', privacy: 'מדיניות פרטיות',
     siteResults: 'אתרי Man Browser בתוצאות החיפוש', siteResultsHint: 'בגוגל, Bing ואחרים, אתרי Man Browser שמתאימים מופיעים למעלה',
   },
 };
@@ -480,7 +482,7 @@ async function injectManSites(tab) {
   const data = {
     results: results.map(r => ({ url: `man://${r.domain}/${r.path || ''}`, show: r.domain + (r.path ? '/' + r.path : ''), title: r.title || r.domain, snippet: r.snippet || '', man: r.domain.endsWith('.man') })),
     title: he ? 'אתרי Man Browser' : 'Man Browser sites',
-    note: he ? 'מוצג רק ב-Man Browser' : 'Only in Man Browser',
+    note: he ? 'נוסף על ידי Man Browser, לא חלק מתוצאות החיפוש' : 'Added by Man Browser, not part of these results',
     more: he ? 'עוד ב-Man Search ←' : 'More on Man Search →',
     moreUrl: 'man://search.domain/?q=' + encodeURIComponent(q),
     rtl: he,
@@ -804,6 +806,7 @@ async function mainMenu() {
     { id: 'hub', label: t('hubMenu') },
     { id: 'domains', label: t('freeDomains') },
     { id: 'mail', label: t('manMail') },
+    ...(freeSiteOf(active) ? [{ id: 'report-site', label: t('reportSite') }] : []),
     { sep: 1 },
     { label: `${t('zoom')} (${z}%)`, sub: [
       { id: 'zoom-in', label: t('zoomIn'), accel: 'Ctrl+=' },
@@ -1096,7 +1099,14 @@ const CMDS = {
   hub: () => createTab('man://browser.domain/'),
   mail: () => createTab('man://mail.domain/'),
   account: () => togglePanel('account'),
+  'report-site': () => { const d = freeSiteOf(active); if (d) createTab(`man://manstudio.domain/?report=${encodeURIComponent(d)}`); },
 };
+// the free Man Studio domain a tab is showing (e.g. "cool.fun"), or null for real websites and internal pages
+function freeSiteOf(tab) {
+  if (!tab || tab.isNew || !tab.url) return null;
+  const m = /^man:\/\/([a-z0-9.-]+)/i.exec(tab.url);
+  return m && !/\.domain$/i.test(m[1]) ? m[1].toLowerCase() : null;
+}
 function runCmd(c) {
   if (c.startsWith('tab-')) { const n = +c.slice(4); select(n === 9 ? tabs[tabs.length - 1] : tabs[n - 1]); return; }
   if (CMDS[c]) CMDS[c]();
@@ -1236,7 +1246,7 @@ function renderAccount(body) {
     out.addEventListener('click', async () => { await api.signOut(); toast(t('signedOut')); });
     const end = el('div', 'acct-card');
     end.append(out, el('div', 'acct-note', t('acctNote')));
-    body.append(end);
+    body.append(end, legalLinks(''));
     return;
   }
 
@@ -1282,7 +1292,20 @@ function renderAccount(body) {
   forgot.addEventListener('click', () => { accMode = accMode === 'reset' ? 'login' : 'reset'; renderPanel(); });
   links.append(forgot);
   body.append(links, el('div', 'acct-note', t('acctNote')));
+  if (accMode === 'signup') body.append(legalLinks(t('legalNote')));
   setTimeout(() => f.inputs.user.focus(), 50);
+}
+// Terms of Use + Privacy Policy (pages on the public website, in the browser's language)
+const LEGAL_SITE = 'https://manorkeshet417-code.github.io/man-browser/';
+function legalLinks(note) {
+  const box = el('div', 'acct-note legal', note ? note + ' ' : '');
+  const he = S.settings.lang === 'he';
+  for (const [k, page] of [['terms', 'terms'], ['privacy', 'privacy']]) {
+    const a = el('button', 'linkish', t(k));
+    a.addEventListener('click', () => createTab(`${LEGAL_SITE}${page}${he ? '-he' : ''}.html`));
+    box.append(a, ' ');
+  }
+  return box;
 }
 $('#account-btn').addEventListener('click', () => togglePanel('account'));
 api.on('account-changed', a => {

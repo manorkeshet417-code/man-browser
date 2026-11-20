@@ -24,6 +24,7 @@ const PAGES = [
   { addr: 'mail.domain', icon: '✉️', en: ['Man Mail', 'Your inbox: name@man.mail'], he: ['Man Mail', 'תיבת הדואר שלך: name@man.mail'] },
   { addr: 'search.domain', icon: '🔎', en: ['Man Search', 'Search Man Browser sites, Wikipedia and the web'], he: ['Man Search', 'חיפוש באתרי Man Browser, בוויקיפדיה וברשת'] },
   { addr: 'whatsnew.domain', icon: '🎁', en: ['What’s new', 'Everything that changed in each update'], he: ['מה חדש', 'כל מה שהשתנה בכל עדכון'] },
+  { addr: 'manstudio.domain', path: '?report=', icon: '⚑', en: ['Report a site', 'Tell Man Studio about a scam or harmful free site'], he: ['דיווח על אתר', 'ספרו ל-Man Studio על אתר חינמי מזיק או הונאה'] },
 ];
 
 // tools: each one is a Man Browser command
@@ -66,12 +67,19 @@ $('#ver').hidden = !version;
 $('#h-pages').textContent = T.pages;
 $('#h-tools').textContent = T.tools;
 $('#h-keys').textContent = T.keys;
-$('#foot').textContent = T.foot;
+$('#foot').textContent = T.foot + ' · ';
+// Terms of Use + Privacy Policy live on the public website
+const LEGAL = 'https://manorkeshet417-code.github.io/man-browser/';
+for (const [page, en, he] of [['terms', 'Terms of Use', 'תנאי שימוש'], ['privacy', 'Privacy Policy', 'מדיניות פרטיות']]) {
+  const a = el('a', '', lang === 'he' ? he : en);
+  a.href = `${LEGAL}${page}${lang === 'he' ? '-he' : ''}.html`;
+  $('#foot').append(a, page === 'terms' ? ' · ' : '');
+}
 
 for (const p of PAGES) {
   const [name, desc] = p[lang];
   const a = el('a', 'card');
-  a.href = `man://${p.addr}/`;
+  a.href = `man://${p.addr}/${p.path || ''}`;
   const tx = el('div');
   tx.append(el('b', '', name), el('span', 'addr', p.addr), el('span', 'd', desc));
   a.append(el('div', 'ic', p.icon), tx);

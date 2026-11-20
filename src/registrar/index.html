@@ -85,12 +85,35 @@
     </div>
   </section>
 
+  <section id="reports" class="card" hidden>
+    <div class="card-head">
+      <h2 data-t="reportsTitle"></h2>
+      <span id="reports-count" class="dim"></span>
+    </div>
+    <div id="reports-list"></div>
+    <form id="remove-form" class="row">
+      <input id="remove-domain" spellcheck="false" autocomplete="off" data-tp="removePh">
+      <button class="danger" data-t="removeAny"></button>
+    </form>
+  </section>
+
+  <section id="report" class="card" hidden>
+    <h2 data-t="reportTitle"></h2>
+    <p class="dim" data-t="reportText"></p>
+    <form id="report-form" class="report-form">
+      <input id="report-domain" spellcheck="false" autocomplete="off" required data-tp="reportDomainPh">
+      <select id="report-reason" required></select>
+      <textarea id="report-details" maxlength="2000" rows="3" data-tp="reportDetailsPh"></textarea>
+      <div class="row end"><button class="primary" data-t="reportSend"></button></div>
+    </form>
+  </section>
+
   <section id="recent" class="card">
     <h2 data-t="recentTitle"></h2>
     <div id="recent-list" class="chips"></div>
   </section>
 
-  <footer class="dim" data-t="footer"></footer>
+  <footer class="dim"><span data-t="footer"></span> · <a href="?report=" id="f-report" data-t="reportLink"></a> · <a id="f-terms" data-t="terms"></a> · <a id="f-privacy" data-t="privacy"></a></footer>
   <div id="toast" hidden></div>
   <script src="/builder.js"></script>
   <script src="/app.js"></script>

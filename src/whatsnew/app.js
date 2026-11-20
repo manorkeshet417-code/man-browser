@@ -3,6 +3,18 @@
    To add a release: put a new entry at the TOP of CHANGELOG and bump "version" in package.json. */
 const CHANGELOG = [
   {
+    version: '1.9.0',
+    date: '2026-11-20',
+    items: [
+      { icon: '⚑', en: ['Report a site', 'See a free site that’s a scam, has a virus or uses someone’s work without permission? ⋮ menu → “Report this site…”. Man Studio reviews every report and removes sites that break the rules.'],
+        he: ['דיווח על אתר', 'נתקלתם באתר חינמי שהוא הונאה, מפיץ וירוס או משתמש ביצירה של מישהו בלי רשות? תפריט ⋮ ← "דיווח על האתר הזה…". Man Studio בודקת כל דיווח ומסירה אתרים שעוברים על הכללים.'] },
+      { icon: '📄', en: ['Terms of Use and Privacy Policy', 'Read exactly what Man Browser stores and the rules for free sites. Links are in the account panel, on browser.domain and on manstudio.domain.'],
+        he: ['תנאי שימוש ומדיניות פרטיות', 'אפשר לקרוא בדיוק מה Man Browser שומר ומה הכללים לאתרים חינמיים. הקישורים נמצאים בחלונית החשבון, ב-browser.domain וב-manstudio.domain.'] },
+      { icon: '🗑️', en: ['Deleted mail is really deleted', 'A Man Mail message is now erased from the server once both sides delete it.'],
+        he: ['דואר שנמחק נמחק באמת', 'הודעת Man Mail נמחקת עכשיו מהשרת ברגע ששני הצדדים מחקו אותה.'] },
+    ],
+  },
+  {
     version: '1.8.0',
     date: '2026-11-20',
     items: [

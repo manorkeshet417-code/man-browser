@@ -34,3 +34,4 @@ h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .6px; color: va
 .key { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px dashed var(--line); }
 kbd { font: 12.5px Consolas, monospace; padding: 2px 8px; border-radius: 6px; background: var(--soft); border: 1px solid var(--line); direction: ltr; white-space: nowrap; }
 footer { text-align: center; padding: 26px; font-size: 12.5px; }
+footer a { color: inherit; text-decoration: underline; }

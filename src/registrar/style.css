@@ -130,3 +130,17 @@ html[dir="rtl"] #name:placeholder-shown { direction: rtl; }
   .search input { flex-basis: 100%; }
   .top { padding: 14px 16px; }
 }
+
+/* reports (1.9.0) */
+.result .agree { flex-basis: 100%; color: var(--dim); font-size: 12.5px; }
+.result .agree a, footer a { color: var(--accent); }
+footer a { cursor: pointer; }
+.report-form { display: flex; flex-direction: column; gap: 10px; max-width: 560px; }
+.report-form textarea { min-height: 80px; padding: 10px 12px; resize: vertical; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; }
+#report-domain, #remove-domain, .report-row b { direction: ltr; unicode-bidi: isolate; }
+.report-row { align-items: flex-start; }
+.report-row .info { flex: 1; min-width: 0; }
+.result:has(.agree) { flex-wrap: wrap; }
+.report-row ul { margin: 6px 0 0; padding-inline-start: 18px; font-size: 13px; }
+#remove-form { margin-top: 12px; }
+#remove-form input { flex: 1; }
