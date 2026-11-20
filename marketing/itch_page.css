@@ -1,0 +1,228 @@
+/* =====================================================================
+   Man Browser — itch.io page theme
+   Paste into: itch.io → your project → Edit game → Edit theme → CSS
+   (the CSS box appears only if custom CSS is enabled on your account)
+   Colors match the Man Browser logo: deep violet → purple → pink.
+   ===================================================================== */
+
+/* ---------- colors ---------- */
+#wrapper {
+  --mb-bg: #120a26;          /* page background */
+  --mb-panel: #1c1433;       /* boxes */
+  --mb-panel-2: #251b44;
+  --mb-line: #3a2d63;
+  --mb-text: #ece9f5;
+  --mb-dim: #a99fc7;
+  --mb-violet: #7c3aed;
+  --mb-purple: #a855f7;
+  --mb-pink: #e0337e;
+  --mb-cyan: #7dd3fc;
+  --mb-grad: linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #e0337e 100%);
+}
+
+/* ---------- page ---------- */
+#wrapper {
+  background:
+    radial-gradient(1100px 600px at 15% -5%, rgba(124, 58, 237, .45), transparent 65%),
+    radial-gradient(900px 600px at 100% 100%, rgba(224, 51, 126, .30), transparent 60%),
+    var(--mb-bg) !important;
+  color: var(--mb-text);
+  font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+}
+#wrapper .inner_column {
+  background: rgba(28, 20, 51, .82) !important;
+  border: 1px solid var(--mb-line);
+  border-radius: 22px;
+  overflow: hidden;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .5), 0 0 0 1px rgba(168, 85, 247, .08) inset;
+  backdrop-filter: blur(6px);
+}
+
+/* ---------- header (title banner) ---------- */
+#wrapper #header {
+  border-bottom: 1px solid var(--mb-line);
+}
+#wrapper #header h1,
+#wrapper .game_title {
+  display: inline-block; /* so the gradient spans just the words: violet → pink */
+  font-weight: 800;
+  letter-spacing: -1px;
+  background: var(--mb-grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
+}
+
+/* ---------- text ---------- */
+#wrapper .formatted_description,
+#wrapper .formatted_description p,
+#wrapper .formatted_description li {
+  color: var(--mb-text);
+  font-size: 16px;
+  line-height: 1.7;
+}
+#wrapper .formatted_description h1,
+#wrapper .formatted_description h2,
+#wrapper .formatted_description h3 {
+  color: #fff;
+  font-weight: 800;
+  letter-spacing: -.5px;
+  margin-top: 1.6em;
+}
+#wrapper .formatted_description h2 {
+  padding-bottom: 8px;
+  border-bottom: 2px solid transparent;
+  border-image: var(--mb-grad) 1;
+}
+#wrapper .formatted_description strong,
+#wrapper .formatted_description b {
+  color: #fff;
+}
+#wrapper .formatted_description code {
+  padding: 2px 8px;
+  border-radius: 7px;
+  color: var(--mb-cyan);
+  background: var(--mb-panel-2);
+  border: 1px solid var(--mb-line);
+  font-family: Consolas, "Cascadia Code", monospace;
+}
+#wrapper .formatted_description ul {
+  padding-inline-start: 1.2em;
+}
+#wrapper .formatted_description li::marker {
+  color: var(--mb-purple);
+}
+#wrapper .formatted_description hr {
+  border: 0;
+  height: 2px;
+  background: var(--mb-grad);
+  opacity: .5;
+  margin: 2em 0;
+}
+#wrapper .formatted_description img {
+  border-radius: 14px;
+  border: 1px solid var(--mb-line);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, .45);
+}
+#wrapper .formatted_description blockquote {
+  margin: 1.4em 0;
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: var(--mb-panel-2);
+  border-inline-start: 4px solid var(--mb-pink);
+  color: var(--mb-text);
+}
+
+/* ---------- links ---------- */
+#wrapper a {
+  color: #c4b5fd;
+  transition: color .15s;
+}
+#wrapper a:hover {
+  color: #f9a8d4;
+}
+
+/* ---------- buttons (Download / Buy / Donate) ---------- */
+#wrapper .button,
+#wrapper button.button,
+#wrapper .buy_btn,
+#wrapper .donate_btn {
+  background: var(--mb-grad) !important;
+  border: 0 !important;
+  border-radius: 12px !important;
+  color: #fff !important;
+  font-weight: 700;
+  text-shadow: none !important;
+  box-shadow: 0 8px 22px rgba(168, 85, 247, .35);
+  transition: transform .12s, filter .12s, box-shadow .12s;
+}
+#wrapper .button:hover,
+#wrapper .buy_btn:hover,
+#wrapper .donate_btn:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
+  box-shadow: 0 12px 30px rgba(224, 51, 126, .4);
+}
+
+/* ---------- download box ---------- */
+#wrapper .purchase_banner,
+#wrapper .donate_banner,
+#wrapper .uploads .upload {
+  background: var(--mb-panel) !important;
+  border: 1px solid var(--mb-line) !important;
+  border-radius: 16px;
+}
+#wrapper .uploads .upload {
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+#wrapper .upload_name .name {
+  color: #fff;
+  font-weight: 700;
+}
+#wrapper .upload_name .file_size,
+#wrapper .upload .download_platforms {
+  color: var(--mb-dim);
+}
+
+/* ---------- screenshots (right column) ---------- */
+#wrapper .screenshot_list img,
+#wrapper .screenshot_list a img {
+  border-radius: 14px;
+  border: 1px solid var(--mb-line);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+  transition: transform .18s, box-shadow .18s, border-color .18s;
+}
+#wrapper .screenshot_list a:hover img {
+  transform: scale(1.02);
+  border-color: var(--mb-purple);
+  box-shadow: 0 16px 40px rgba(168, 85, 247, .35);
+}
+
+/* ---------- "More information" table ---------- */
+#wrapper .more_information_toggle,
+#wrapper .game_info_panel_widget {
+  background: var(--mb-panel) !important;
+  border: 1px solid var(--mb-line);
+  border-radius: 14px;
+}
+#wrapper .game_info_panel_widget td {
+  color: var(--mb-text);
+  border-color: var(--mb-line) !important;
+}
+#wrapper .game_info_panel_widget td:first-child {
+  color: var(--mb-dim);
+}
+
+/* ---------- comments / devlog ---------- */
+#wrapper .game_comments_widget,
+#wrapper .community_post {
+  color: var(--mb-text);
+}
+#wrapper .community_post .post_body {
+  background: var(--mb-panel);
+  border: 1px solid var(--mb-line);
+  border-radius: 12px;
+}
+#wrapper textarea,
+#wrapper input[type="text"] {
+  background: var(--mb-panel-2) !important;
+  color: var(--mb-text) !important;
+  border: 1px solid var(--mb-line) !important;
+  border-radius: 10px;
+}
+
+/* ---------- text selection + scrollbars ---------- */
+#wrapper ::selection {
+  background: rgba(168, 85, 247, .45);
+  color: #fff;
+}
+html {
+  scrollbar-color: var(--mb-violet, #7c3aed) #120a26;
+}
+
+/* ---------- phones ---------- */
+@media (max-width: 700px) {
+  #wrapper .inner_column { border-radius: 0; border-left: 0; border-right: 0; }
+  #wrapper .formatted_description { font-size: 15px; }
+}

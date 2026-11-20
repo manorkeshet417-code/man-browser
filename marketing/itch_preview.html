@@ -1,0 +1,87 @@
+<!doctype html>
+<!-- Local preview of itch_page.css: a page built like an itch.io project page. Open it in a browser. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Man Browser by Man Studio (itch.io preview)</title>
+<link rel="stylesheet" href="itch_page.css">
+<style>
+  /* rough stand-ins for itch.io's own layout, only for this preview */
+  body { margin: 0; }
+  #wrapper { min-height: 100vh; padding: 40px 0; }
+  .inner_column { width: 960px; max-width: calc(100% - 24px); margin: 0 auto; }
+  #header { padding: 34px 40px 24px; }
+  #header h1 { margin: 0; font-size: 52px; }
+  .columns { display: flex; gap: 30px; padding: 26px 40px 40px; }
+  .left_col { flex: 1; min-width: 0; }
+  .right_col { width: 300px; flex: none; }
+  .screenshot_list a { display: block; margin-bottom: 14px; }
+  .screenshot_list img { width: 100%; display: block; }
+  .button { display: inline-block; padding: 12px 22px; text-decoration: none; }
+  .purchase_banner { padding: 16px 18px; margin: 24px 0; }
+  .upload { display: flex; align-items: center; gap: 14px; }
+  .upload_name { flex: 1; }
+  .file_size { margin-inline-start: 8px; }
+  .more_information_toggle { padding: 12px 16px; margin-top: 24px; }
+  .game_info_panel_widget table { width: 100%; border-collapse: collapse; }
+  .game_info_panel_widget td { padding: 8px 4px; border-bottom: 1px solid; }
+  @media (max-width: 760px) { .columns { flex-direction: column; } .right_col { width: auto; } }
+</style>
+</head>
+<body>
+<div id="wrapper">
+  <div class="inner_column">
+    <div id="header"><h1 class="game_title">Man Browser</h1></div>
+    <div class="columns">
+      <div class="left_col column">
+        <div class="formatted_description">
+          <p><img src="banners/banner-1920x1080.png" alt="Man Browser" style="width: 100%"></p>
+          <p><strong>Fast. Private. Yours.</strong> Man Browser is a fast, private web browser for Windows by Man Studio, built on the same engine as Chrome, so every website just works.</p>
+          <h2>What's inside</h2>
+          <ul>
+            <li>🛡 <strong>Ad &amp; tracker blocker</strong> that's always on</li>
+            <li>✦ <strong>Free domains</strong> like <code>yourname.fun</code> at manstudio.domain</li>
+            <li>✨ <strong>Build a site without code</strong>, or upload your own .html</li>
+            <li>🔎 <strong>Man Search</strong> and ✉ <strong>Man Mail</strong> (<code>name@man.mail</code>)</li>
+            <li>🔄 <strong>Updates itself</strong></li>
+          </ul>
+          <blockquote>Windows may say "Windows protected your PC" because the app isn't code-signed yet: click <strong>More info → Run anyway</strong>.</blockquote>
+          <hr>
+        </div>
+        <div class="purchase_banner">
+          <a class="button buy_btn" href="#">Download Now</a> <span style="margin-inline-start: 10px; color: #a99fc7">Name your own price</span>
+        </div>
+        <div class="uploads">
+          <div class="upload">
+            <a class="button" href="#">Download</a>
+            <div class="upload_name"><strong class="name">ManBrowser-Setup.exe</strong><span class="file_size">79 MB</span></div>
+          </div>
+          <div class="upload">
+            <a class="button" href="#">Download</a>
+            <div class="upload_name"><strong class="name">ManBrowser-Portable.exe</strong><span class="file_size">79 MB</span></div>
+          </div>
+        </div>
+        <div class="more_information_toggle">
+          <div class="game_info_panel_widget">
+            <table>
+              <tr><td>Status</td><td>In development</td></tr>
+              <tr><td>Platforms</td><td>Windows</td></tr>
+              <tr><td>Author</td><td><a href="#">Man Studio</a></td></tr>
+              <tr><td>Tags</td><td>browser, no-code, website builder</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="right_col column">
+        <div class="screenshot_list">
+          <a href="#"><img src="screenshots/03-site-builder.png" alt=""></a>
+          <a href="#"><img src="screenshots/04-man-search.png" alt=""></a>
+          <a href="#"><img src="screenshots/05-man-mail.png" alt=""></a>
+          <a href="#"><img src="screenshots/07-on-top-of-search.png" alt=""></a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
