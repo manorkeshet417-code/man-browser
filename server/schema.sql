@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS users (
   role         TEXT NOT NULL DEFAULT 'user',  -- 'user' | 'dev'
   failed       INTEGER NOT NULL DEFAULT 0,
   locked_until TEXT,
+  recovery_hash TEXT,                       -- sha256 of the recovery code (1.7.0)
   created_at   TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS sessions (
@@ -58,3 +59,19 @@ CREATE VIRTUAL TABLE IF NOT EXISTS search_idx USING fts5(
   domain UNINDEXED, path UNINDEXED, name, title, body,
   tokenize = 'unicode61 remove_diacritics 2'
 );
+
+-- Man Mail (added in 1.7.0): <uname>@man.mail
+CREATE TABLE IF NOT EXISTS mails (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  to_uname       TEXT NOT NULL,
+  from_uname     TEXT,
+  from_name      TEXT NOT NULL,
+  subject        TEXT NOT NULL DEFAULT '',
+  body           TEXT NOT NULL DEFAULT '',
+  created_at     TEXT NOT NULL,
+  read           INTEGER NOT NULL DEFAULT 0,
+  deleted        INTEGER NOT NULL DEFAULT 0,
+  sender_deleted INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS mails_to_idx ON mails (to_uname, id);
+CREATE INDEX IF NOT EXISTS mails_from_idx ON mails (from_uname, id);

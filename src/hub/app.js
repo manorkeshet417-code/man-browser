@@ -21,6 +21,7 @@ const T = {
 const PAGES = [
   { addr: 'browser.domain', icon: '🧭', en: ['This page', 'All of Man Browser in one place'], he: ['הדף הזה', 'כל Man Browser במקום אחד'] },
   { addr: 'manstudio.domain', icon: '✦', en: ['Free domains', 'Get a free domain and build a site, no code needed'], he: ['דומיינים בחינם', 'לוקחים דומיין בחינם ובונים אתר, גם בלי קוד'] },
+  { addr: 'mail.domain', icon: '✉️', en: ['Man Mail', 'Your inbox: name@man.mail'], he: ['Man Mail', 'תיבת הדואר שלך: name@man.mail'] },
   { addr: 'search.domain', icon: '🔎', en: ['Man Search', 'Search Man Browser sites, Wikipedia and the web'], he: ['Man Search', 'חיפוש באתרי Man Browser, בוויקיפדיה וברשת'] },
   { addr: 'whatsnew.domain', icon: '🎁', en: ['What’s new', 'Everything that changed in each update'], he: ['מה חדש', 'כל מה שהשתנה בכל עדכון'] },
 ];

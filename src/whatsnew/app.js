@@ -3,6 +3,18 @@
    To add a release: put a new entry at the TOP of CHANGELOG and bump "version" in package.json. */
 const CHANGELOG = [
   {
+    version: '1.7.0',
+    date: '2026-11-20',
+    items: [
+      { icon: '✉️', en: ['Man Mail', 'Every account now has its own address, like name@man.mail, with an inbox at mail.domain. Write to other Man Browser users, and get notices about your account.'],
+        he: ['Man Mail', 'לכל חשבון יש עכשיו כתובת משלו, כמו name@man.mail, עם תיבת דואר ב-mail.domain. אפשר לכתוב למשתמשי Man Browser אחרים ולקבל הודעות על החשבון.'] },
+      { icon: '🔑', en: ['Forgot your password? Recovery code', 'Your account gets a recovery code. If you forget your password, use it in Account → “Forgot your password?”. Already have an account? Make a code in Account → Recovery code.'],
+        he: ['שכחת סיסמה? קוד שחזור', 'החשבון מקבל קוד שחזור. אם שוכחים את הסיסמה, משתמשים בו בחשבון ← "שכחת את הסיסמה?". יש לך כבר חשבון? יוצרים קוד בחשבון ← קוד שחזור.'] },
+      { icon: '🔒', en: ['Change password', 'Change your password from the account panel. Other devices are signed out.'],
+        he: ['שינוי סיסמה', 'אפשר לשנות סיסמה מחלונית החשבון. מכשירים אחרים מתנתקים.'] },
+    ],
+  },
+  {
     version: '1.6.0',
     date: '2026-11-19',
     items: [

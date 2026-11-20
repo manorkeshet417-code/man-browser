@@ -88,6 +88,17 @@ const I18N = {
     err_taken: 'That username is already taken.', err_bad_username: 'Username: 3–24 letters or numbers (spaces, dots, - and _ are fine in the middle).',
     err_bad_password: 'Password: at least 8 characters.', err_mismatch: 'The passwords don’t match.',
     err_offline: 'No internet connection.', err_server: 'Something went wrong. Try again.',
+    err_wrong_code: 'Wrong username or recovery code.', err_signed_out: 'You were signed out. Sign in again.',
+    forgot: 'Forgot your password?', backToSignIn: '← Back to sign in', resetBtn: 'Set new password',
+    resetText: 'Use the recovery code you saved when you made your account. You’ll get a new one after this.',
+    recoveryCode: 'Recovery code', newPassword: 'New password', currentPassword: 'Current password',
+    changePassword: 'Change password', passwordChanged: 'Password changed', passwordReset: 'Password reset — you’re signed in',
+    recovery: 'Recovery code', noRecovery: '⚠ You don’t have a recovery code. If you forget your password, there’s no way back in. Make one now.',
+    hasRecovery: 'If you forget your password, your recovery code lets you set a new one.', makeCode: 'Make a recovery code', newCode: 'Make a new code',
+    newCodeConfirm: 'Make a new recovery code? The old one will stop working.',
+    codeTitle: '🔑 Your recovery code', codeText: 'Save it somewhere safe (a note on paper, a password manager). It’s shown only now, and it’s the only way back in if you forget your password.',
+    codeSaved: 'I saved it', copy: 'Copy', copied: 'Copied',
+    openMail: '✉ Open Man Mail', openMailN: '✉ Open Man Mail ({n} new)', unreadN: '{n} unread', manMail: 'Man Mail (mail.domain)',
     clearData: 'Clear browsing data', clearDataHint: 'History, cookies, cache and site data', clearBtn: 'Clear', cleared: 'Browsing data cleared',
     today: 'Today', yesterday: 'Yesterday', morning: 'Good morning', afternoon: 'Good afternoon', evening: 'Good evening', night: 'Good night',
     errTitle: 'This page can’t be reached', retry: 'Try again',
@@ -126,6 +137,17 @@ const I18N = {
     err_taken: 'שם המשתמש הזה כבר תפוס.', err_bad_username: 'שם משתמש: 3–24 אותיות או מספרים (רווחים, נקודות, - ו-_ מותרים באמצע).',
     err_bad_password: 'סיסמה: לפחות 8 תווים.', err_mismatch: 'הסיסמאות לא תואמות.',
     err_offline: 'אין חיבור לאינטרנט.', err_server: 'משהו השתבש. נסו שוב.',
+    err_wrong_code: 'שם משתמש או קוד שחזור לא נכונים.', err_signed_out: 'התנתקת. התחבר/י שוב.',
+    forgot: 'שכחת את הסיסמה?', backToSignIn: '← חזרה להתחברות', resetBtn: 'קביעת סיסמה חדשה',
+    resetText: 'משתמשים בקוד השחזור ששמרת כשיצרת את החשבון. אחרי זה מקבלים קוד חדש.',
+    recoveryCode: 'קוד שחזור', newPassword: 'סיסמה חדשה', currentPassword: 'הסיסמה הנוכחית',
+    changePassword: 'שינוי סיסמה', passwordChanged: 'הסיסמה שונתה', passwordReset: 'הסיסמה אופסה — את/ה מחובר/ת',
+    recovery: 'קוד שחזור', noRecovery: '⚠ אין לך קוד שחזור. אם תשכח/י את הסיסמה, לא תהיה דרך להיכנס. כדאי ליצור אחד עכשיו.',
+    hasRecovery: 'אם תשכח/י את הסיסמה, קוד השחזור מאפשר לקבוע סיסמה חדשה.', makeCode: 'יצירת קוד שחזור', newCode: 'יצירת קוד חדש',
+    newCodeConfirm: 'ליצור קוד שחזור חדש? הקוד הקודם יפסיק לעבוד.',
+    codeTitle: '🔑 קוד השחזור שלך', codeText: 'שמור/י אותו במקום בטוח (על דף, או בתוכנה לשמירת סיסמאות). הוא מוצג רק עכשיו, והוא הדרך היחידה להיכנס אם שוכחים את הסיסמה.',
+    codeSaved: 'שמרתי', copy: 'העתקה', copied: 'הועתק',
+    openMail: '✉ פתיחת Man Mail', openMailN: '✉ פתיחת Man Mail ({n} חדשים)', unreadN: '{n} שלא נקראו', manMail: 'Man Mail (mail.domain)',
     clearData: 'ניקוי נתוני גלישה', clearDataHint: 'היסטוריה, עוגיות, מטמון ונתוני אתרים', clearBtn: 'ניקוי', cleared: 'נתוני הגלישה נוקו',
     today: 'היום', yesterday: 'אתמול', morning: 'בוקר טוב', afternoon: 'צהריים טובים', evening: 'ערב טוב', night: 'לילה טוב',
     errTitle: 'אי אפשר להגיע לדף הזה', retry: 'לנסות שוב',
@@ -681,6 +703,7 @@ async function mainMenu() {
     { id: 'reopen-tab', label: t('reopen'), accel: 'Ctrl+Shift+T', enabled: closedStack.length > 0 },
     { id: 'hub', label: t('hubMenu') },
     { id: 'domains', label: t('freeDomains') },
+    { id: 'mail', label: t('manMail') },
     { sep: 1 },
     { label: `${t('zoom')} (${z}%)`, sub: [
       { id: 'zoom-in', label: t('zoomIn'), accel: 'Ctrl+=' },
@@ -970,6 +993,7 @@ const CMDS = {
   domains: () => createTab('man://manstudio.domain/'),
   'whats-new': () => createTab('man://whatsnew.domain/'),
   hub: () => createTab('man://browser.domain/'),
+  mail: () => createTab('man://mail.domain/'),
   account: () => togglePanel('account'),
 };
 function runCmd(c) {
@@ -1007,77 +1031,174 @@ $('#menu-btn').addEventListener('click', mainMenu);
 $('#settings-btn').addEventListener('click', () => togglePanel('settings'));
 
 /* ================= account ================= */
-let account = null, accMode = 'login';
+let account = null, accMode = 'login', shownCode = null, mailUnread = 0;
 function renderAccountBtn() {
   const b = $('#account-btn');
   b.innerHTML = '';
   b.classList.toggle('dev', !!account && account.role === 'dev');
   if (account) {
     b.append(letterIcon(account.username));
-    b.title = `${account.username}${account.role === 'dev' ? ' · DEV' : ''}`;
+    b.title = `${account.username}${account.role === 'dev' ? ' · DEV' : ''}${mailUnread ? ' · ' + t('unreadN', mailUnread) : ''}`;
+    if (mailUnread || !account.recovery) b.append(el('i', 'acct-dot')); // unread mail, or no recovery code yet
   } else {
     b.innerHTML = svg('user');
     b.title = t('signIn');
   }
 }
 function reloadRegistrarTabs() {
-  for (const tb of tabs) if (tb.ready && /^man:\/\/manstudio\.domain\//i.test(tb.url)) tb.wv.reload();
+  for (const tb of tabs) if (tb.ready && /^man:\/\/(manstudio|mail)\.domain\//i.test(tb.url)) tb.wv.reload();
+}
+// a recovery code is shown once: big, with Copy and "I saved it"
+function codeCard(code) {
+  const box = el('div', 'code-card');
+  box.append(el('b', '', t('codeTitle')), el('div', 'acct-note', t('codeText')));
+  const c = el('div', 'code', code);
+  const row = el('div', 'code-row');
+  const copy = el('button', 'btn ghost', t('copy'));
+  copy.addEventListener('click', () => { navigator.clipboard.writeText(code).then(() => toast(t('copied'))).catch(() => {}); });
+  const done = el('button', 'btn', t('codeSaved'));
+  done.addEventListener('click', () => { shownCode = null; renderPanel(); });
+  row.append(copy, done);
+  box.append(c, row);
+  return box;
+}
+function formOf(fields, submitLabel, onSubmit) {
+  const form = el('form', 'acct-form');
+  const inputs = {};
+  for (const [key, label, type, ac, max] of fields) {
+    const i = el('input', 'inp');
+    i.type = type; i.autocomplete = ac; i.spellcheck = false; i.maxLength = max || 128;
+    form.append(el('label', '', label), i);
+    inputs[key] = i;
+  }
+  const err = el('div', 'acct-err');
+  const go = el('button', 'btn', submitLabel);
+  go.type = 'submit';
+  form.append(err, go);
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    err.textContent = '';
+    go.disabled = true;
+    try { const msg = await onSubmit(inputs); if (msg) err.textContent = msg; }
+    finally { go.disabled = false; }
+  });
+  return { form, inputs };
 }
 function renderAccount(body) {
+  if (shownCode) body.append(codeCard(shownCode));
   if (account) {
     const card = el('div', 'acct-card');
     card.append(letterIcon(account.username), el('div', 'name', account.username));
-    if (account.role === 'dev') {
-      card.append(el('span', 'dev-badge', 'DEV · MAN STUDIO'), el('div', 'acct-note', t('devNote')));
-    } else card.append(el('div', 'acct-note', t('signedInAs')));
-    const out = el('button', 'btn ghost', t('signOut'));
-    out.style.marginTop = '14px';
-    out.addEventListener('click', async () => { await api.signOut(); toast(t('signedOut')); });
-    card.append(out, el('div', 'acct-note', t('acctNote')));
+    if (account.role === 'dev') card.append(el('span', 'dev-badge', 'DEV · MAN STUDIO'), el('div', 'acct-note', t('devNote')));
+    if (account.address) {
+      const addr = el('button', 'acct-addr', '✉ ' + account.address);
+      addr.title = t('copy');
+      addr.addEventListener('click', () => navigator.clipboard.writeText(account.address).then(() => toast(t('copied'))).catch(() => {}));
+      card.append(addr);
+    }
+    const mail = el('button', 'btn', mailUnread ? t('openMailN', mailUnread) : t('openMail'));
+    mail.addEventListener('click', () => { closePanel(); createTab('man://mail.domain/'); });
+    card.append(mail);
     body.append(card);
+
+    // recovery code
+    const rec = el('div', 'acct-section');
+    rec.append(el('h4', '', t('recovery')));
+    if (!account.recovery) rec.append(el('div', 'acct-warn', t('noRecovery')));
+    else rec.append(el('div', 'acct-note left', t('hasRecovery')));
+    const mk = el('button', account.recovery ? 'btn ghost' : 'btn', t(account.recovery ? 'newCode' : 'makeCode'));
+    mk.addEventListener('click', async () => {
+      if (account.recovery && !confirm(t('newCodeConfirm'))) return;
+      const r = await api.newRecoveryCode();
+      if (r && r.ok) { shownCode = r.recovery; renderPanel(); } else toast(t('err_' + ((r && r.error) || 'server')));
+    });
+    rec.append(mk);
+    body.append(rec);
+
+    // change password
+    const cp = el('details', 'acct-section');
+    cp.append(el('summary', '', t('changePassword')));
+    const { form } = formOf([
+      ['old', t('currentPassword'), 'password', 'current-password'],
+      ['pw', t('newPassword'), 'password', 'new-password'],
+      ['pw2', t('confirmPassword'), 'password', 'new-password'],
+    ], t('changePassword'), async i => {
+      if (i.pw.value !== i.pw2.value) return t('err_mismatch');
+      const r = await api.changePassword(i.old.value, i.pw.value);
+      if (r && r.ok) { toast(t('passwordChanged')); cp.open = false; i.old.value = i.pw.value = i.pw2.value = ''; return ''; }
+      return t('err_' + ((r && r.error) || 'server'));
+    });
+    cp.append(form);
+    body.append(cp);
+
+    const out = el('button', 'btn ghost', t('signOut'));
+    out.addEventListener('click', async () => { await api.signOut(); toast(t('signedOut')); });
+    const end = el('div', 'acct-card');
+    end.append(out, el('div', 'acct-note', t('acctNote')));
+    body.append(end);
     return;
   }
+
   const seg = el('div', 'seg');
   for (const m of ['login', 'signup']) {
     const b = el('button', m === accMode ? 'on' : '', t(m === 'login' ? 'signIn' : 'signUp'));
     b.addEventListener('click', () => { accMode = m; renderPanel(); });
     seg.append(b);
   }
-  const form = el('form', 'acct-form');
-  const field = (label, type, ac) => {
-    const i = el('input', 'inp');
-    i.type = type; i.autocomplete = ac; i.spellcheck = false; i.maxLength = type === 'password' ? 128 : 24;
-    form.append(el('label', '', label), i);
-    return i;
-  };
-  const user = field(t('username'), 'text', 'username');
-  const pass = field(t('password'), 'password', accMode === 'signup' ? 'new-password' : 'current-password');
-  const pass2 = accMode === 'signup' ? field(t('confirmPassword'), 'password', 'new-password') : null;
-  const err = el('div', 'acct-err');
-  const go = el('button', 'btn', t(accMode === 'login' ? 'signIn' : 'signUp'));
-  go.type = 'submit';
-  form.append(err, go, el('div', 'acct-note', t('acctNote')));
-  form.addEventListener('submit', async e => {
-    e.preventDefault();
-    err.textContent = '';
-    if (pass2 && pass.value !== pass2.value) { err.textContent = t('err_mismatch'); return; }
-    go.disabled = true;
-    const res = await (accMode === 'signup' ? api.signUp : api.signIn)(user.value, pass.value);
-    go.disabled = false;
-    if (res && res.ok) toast(t('welcome', res.account.username));
-    else err.textContent = t('err_' + ((res && res.error) || 'server'));
-  });
-  body.append(seg, form);
-  setTimeout(() => user.focus(), 50);
+  body.append(seg);
+  let f;
+  if (accMode === 'reset') {
+    body.append(el('div', 'acct-note left pad', t('resetText')));
+    f = formOf([
+      ['user', t('username'), 'text', 'username', 24],
+      ['code', t('recoveryCode'), 'text', 'off', 40],
+      ['pw', t('newPassword'), 'password', 'new-password'],
+      ['pw2', t('confirmPassword'), 'password', 'new-password'],
+    ], t('resetBtn'), async i => {
+      if (i.pw.value !== i.pw2.value) return t('err_mismatch');
+      const r = await api.resetPassword(i.user.value, i.code.value, i.pw.value);
+      if (r && r.ok) { shownCode = r.recovery; accMode = 'login'; toast(t('passwordReset')); renderPanel(); return ''; }
+      return t('err_' + ((r && r.error) || 'server'));
+    });
+    f.inputs.code.placeholder = 'XXXXX-XXXXX-XXXXX-XXXXX';
+    f.inputs.code.classList.add('ltr');
+  } else {
+    const signup = accMode === 'signup';
+    f = formOf([
+      ['user', t('username'), 'text', 'username', 24],
+      ['pw', t('password'), 'password', signup ? 'new-password' : 'current-password'],
+      ...(signup ? [['pw2', t('confirmPassword'), 'password', 'new-password']] : []),
+    ], t(signup ? 'signUp' : 'signIn'), async i => {
+      if (signup && i.pw.value !== i.pw2.value) return t('err_mismatch');
+      const r = await (signup ? api.signUp : api.signIn)(i.user.value, i.pw.value);
+      if (r && r.ok) { if (r.recovery) shownCode = r.recovery; toast(t('welcome', r.account.username)); renderPanel(); return ''; }
+      return t('err_' + ((r && r.error) || 'server'));
+    });
+  }
+  body.append(f.form);
+  const links = el('div', 'acct-links');
+  const forgot = el('button', 'linkish', accMode === 'reset' ? t('backToSignIn') : t('forgot'));
+  forgot.addEventListener('click', () => { accMode = accMode === 'reset' ? 'login' : 'reset'; renderPanel(); });
+  links.append(forgot);
+  body.append(links, el('div', 'acct-note', t('acctNote')));
+  setTimeout(() => f.inputs.user.focus(), 50);
 }
 $('#account-btn').addEventListener('click', () => togglePanel('account'));
 api.on('account-changed', a => {
   account = a;
+  if (!a) mailUnread = 0;
   renderAccountBtn();
   if (panelName === 'account') renderPanel();
-  reloadRegistrarTabs(); // manstudio.domain shows .man only to the dev
+  reloadRegistrarTabs(); // manstudio.domain shows .man only to the dev; Man Mail shows the signed-in inbox
+});
+api.on('mail-unread', n => {
+  if (n === mailUnread) return;
+  mailUnread = n;
+  renderAccountBtn();
+  if (panelName === 'account' && !shownCode) renderPanel();
 });
 api.account().then(a => { account = a; renderAccountBtn(); });
+api.mailUnread().then(n => { mailUnread = n || 0; renderAccountBtn(); });
 
 /* automatic updates: main downloads in the background; we show a button when it's ready */
 function showUpdate(version) {

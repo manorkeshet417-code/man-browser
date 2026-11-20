@@ -53,12 +53,49 @@ const tokenOk = t => typeof t === 'string' && t.length >= 20;
 const cleanName = u => String(u ?? '').trim().replace(/\s+/g, ' ');
 const unameOf = u => cleanName(u).toLowerCase().replace(/[\s._-]+/g, '');
 const USERNAME_RE = /^[\p{L}\p{N}][\p{L}\p{N} ._-]{1,22}[\p{L}\p{N}]$/u;
-const publicUser = u => ({ username: u.username, role: u.role });
+const publicUser = u => ({ username: u.username, role: u.role, address: `${u.uname}@${MAIL_HOST}`, recovery: !!u.recovery_hash });
+
+/* ---------- recovery codes: the way back in when a password is forgotten (no email needed) ---------- */
+const CODE_ABC = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0/O, 1/I/L
+function newRecoveryCode() {
+  const b = crypto.getRandomValues(new Uint8Array(20));
+  const c = [...b].map(x => CODE_ABC[x % CODE_ABC.length]).join('');
+  return `${c.slice(0, 5)}-${c.slice(5, 10)}-${c.slice(10, 15)}-${c.slice(15)}`;
+}
+const codeHash = code => sha256('recovery:' + String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, ''));
+async function setRecovery(db, userId) {
+  const code = newRecoveryCode();
+  await db.prepare('UPDATE users SET recovery_hash = ? WHERE id = ?').bind(await codeHash(code), userId).run();
+  return code;
+}
+async function setPassword(db, userId, password) {
+  const salt = randomHex(16);
+  const hash = await pbkdf2(password, salt, PBKDF2_ITERATIONS);
+  await db.prepare('UPDATE users SET pass_hash = ?, salt = ?, iterations = ?, failed = 0, locked_until = NULL WHERE id = ?')
+    .bind(hash, salt, PBKDF2_ITERATIONS, userId).run();
+}
+async function wrongTry(db, u) { // counts wrong passwords / codes; 10 in a row locks the account for 15 minutes
+  const failed = u.failed + 1;
+  const lock = failed >= MAX_FAILED ? new Date(Date.now() + LOCK_MINUTES * 60e3).toISOString() : null;
+  await db.prepare('UPDATE users SET failed = ?, locked_until = ? WHERE id = ?').bind(lock ? 0 : failed, lock, u.id).run();
+  return lock ? 'locked' : 'wrong';
+}
+
+/* ---------- Man Mail: every account has <name>@man.mail ---------- */
+const MAIL_HOST = 'man.mail';
+const MAX_MAIL_BODY = 20000;
+const MAX_SENT_PER_DAY = 50;
+const SYSTEM_FROM = 'Man Browser';
+async function systemMail(db, uname, subject, body) {
+  await db.prepare('INSERT INTO mails (to_uname, from_uname, from_name, subject, body, created_at) VALUES (?, NULL, ?, ?, ?, ?)')
+    .bind(uname, SYSTEM_FROM, subject, body, now()).run();
+}
+const unameFromAddress = to => unameOf(String(to || '').trim().toLowerCase().replace(new RegExp('@' + MAIL_HOST.replace('.', '\\.') + '$'), ''));
 
 async function userFromToken(db, token) {
   if (!tokenOk(token)) return null;
   const th = await sha256(token);
-  const u = await db.prepare('SELECT u.id, u.username, u.role FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?')
+  const u = await db.prepare('SELECT u.id, u.username, u.uname, u.role, u.recovery_hash, u.failed FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?')
     .bind(th).first();
   if (u) await db.prepare('UPDATE sessions SET last_used = ? WHERE token_hash = ?').bind(now(), th).run();
   return u || null;
@@ -253,7 +290,12 @@ const RPC = {
       id = r.meta.last_row_id;
     } catch { return { error: 'taken' }; }
     if (role === 'dev') await db.prepare("UPDATE meta SET value = '0' WHERE key = 'dev_signup_open'").run();
-    return { ok: true, token: await newSession(db, id), user: { username, role } };
+    const recovery = await setRecovery(db, id);
+    await systemMail(db, uname, 'Welcome to Man Browser 👋',
+      `Hi ${username}!\n\nThis is Man Mail, your inbox inside Man Browser. Your address is ${uname}@${MAIL_HOST}.\n\n` +
+      `Messages about your account arrive here, and other Man Browser users can write to you.\n\n` +
+      `Keep your recovery code somewhere safe: it's the only way back in if you forget your password.`);
+    return { ok: true, token: await newSession(db, id), user: { username, role, address: `${uname}@${MAIL_HOST}`, recovery: true }, recovery };
   },
 
   async acct_login(db, a) {
@@ -261,19 +303,114 @@ const RPC = {
     if (!u) return { error: 'wrong' };
     if (u.locked_until && u.locked_until > now()) return { error: 'locked' };
     const ok = sameHex(await pbkdf2(String(a.password ?? ''), u.salt, u.iterations), u.pass_hash);
-    if (!ok) {
-      const failed = u.failed + 1;
-      const lock = failed >= MAX_FAILED ? new Date(Date.now() + LOCK_MINUTES * 60e3).toISOString() : null;
-      await db.prepare('UPDATE users SET failed = ?, locked_until = ? WHERE id = ?').bind(lock ? 0 : failed, lock, u.id).run();
-      return { error: lock ? 'locked' : 'wrong' };
-    }
+    if (!ok) return { error: await wrongTry(db, u) };
     await db.prepare('UPDATE users SET failed = 0, locked_until = NULL WHERE id = ?').bind(u.id).run();
+    await systemMail(db, u.uname, 'New sign-in to your account',
+      `Someone signed in to ${u.username} on Man Browser (${new Date().toUTCString()}).\n\nIf it was you, there's nothing to do. ` +
+      `If it wasn't, change your password now: Account → Change password.`);
     return { ok: true, token: await newSession(db, u.id), user: publicUser(u) };
   },
 
   async acct_me(db, a) {
     const u = await userFromToken(db, a.token);
     return u ? { ok: true, user: publicUser(u) } : { error: 'signed_out' };
+  },
+
+  // a new recovery code (the old one stops working). Shown once.
+  async acct_recovery_new(db, a) {
+    const u = await userFromToken(db, a.token);
+    if (!u) return { error: 'signed_out' };
+    const recovery = await setRecovery(db, u.id);
+    await systemMail(db, u.uname, 'New recovery code', 'A new recovery code was made for your account. Any older code no longer works.');
+    return { ok: true, recovery };
+  },
+
+  // forgot the password: username + recovery code + new password. Signs out everywhere and gives a new code.
+  async acct_reset(db, a) {
+    const password = String(a.password ?? '');
+    if (password.length < 8 || password.length > 128) return { error: 'bad_password' };
+    const u = await db.prepare('SELECT * FROM users WHERE uname = ?').bind(unameOf(a.username)).first();
+    if (!u || !u.recovery_hash) return { error: 'wrong_code' };
+    if (u.locked_until && u.locked_until > now()) return { error: 'locked' };
+    if (!sameHex(await codeHash(a.code), u.recovery_hash)) return { error: (await wrongTry(db, u)) === 'locked' ? 'locked' : 'wrong_code' };
+    await setPassword(db, u.id, password);
+    await db.prepare('DELETE FROM sessions WHERE user_id = ?').bind(u.id).run();
+    const recovery = await setRecovery(db, u.id); // the used code is gone
+    await systemMail(db, u.uname, 'Your password was reset',
+      `The password of ${u.username} was reset with your recovery code (${new Date().toUTCString()}). You were signed out everywhere else, ` +
+      `and you got a new recovery code. If this wasn't you, reset your password again right away.`);
+    return { ok: true, token: await newSession(db, u.id), user: publicUser({ ...u, recovery_hash: 'x' }), recovery };
+  },
+
+  // signed in and knows the password: change it (other devices are signed out)
+  async acct_change_password(db, a) {
+    const u = await userFromToken(db, a.token);
+    if (!u) return { error: 'signed_out' };
+    const password = String(a.password ?? '');
+    if (password.length < 8 || password.length > 128) return { error: 'bad_password' };
+    const full = await db.prepare('SELECT * FROM users WHERE id = ?').bind(u.id).first();
+    if (full.locked_until && full.locked_until > now()) return { error: 'locked' };
+    if (!sameHex(await pbkdf2(String(a.old ?? ''), full.salt, full.iterations), full.pass_hash)) return { error: await wrongTry(db, full) };
+    await setPassword(db, u.id, password);
+    await db.prepare('DELETE FROM sessions WHERE user_id = ? AND token_hash <> ?').bind(u.id, await sha256(a.token)).run();
+    await systemMail(db, u.uname, 'Your password was changed',
+      `The password of ${u.username} was changed (${new Date().toUTCString()}). Other devices were signed out.`);
+    return { ok: true };
+  },
+
+  /* ---------- Man Mail ---------- */
+  async mail_inbox(db, a) {
+    const u = await userFromToken(db, a.token);
+    if (!u) return { error: 'signed_out' };
+    const box = a.box === 'sent' ? 'sent' : 'inbox';
+    const sql = box === 'sent'
+      ? 'SELECT id, to_uname, from_name, subject, substr(body, 1, 140) AS preview, created_at, 1 AS read FROM mails WHERE from_uname = ? AND sender_deleted = 0 ORDER BY id DESC LIMIT 100'
+      : 'SELECT id, to_uname, from_uname, from_name, subject, substr(body, 1, 140) AS preview, created_at, read FROM mails WHERE to_uname = ? AND deleted = 0 ORDER BY id DESC LIMIT 100';
+    const { results } = await db.prepare(sql).bind(u.uname).all();
+    return { ok: true, address: `${u.uname}@${MAIL_HOST}`, mails: results.map(m => ({ ...m,
+      from: m.from_uname ? `${m.from_uname}@${MAIL_HOST}` : null, to: `${m.to_uname}@${MAIL_HOST}` })) };
+  },
+  async mail_get(db, a) {
+    const u = await userFromToken(db, a.token);
+    if (!u) return { error: 'signed_out' };
+    const m = await db.prepare('SELECT * FROM mails WHERE id = ? AND ((to_uname = ? AND deleted = 0) OR (from_uname = ? AND sender_deleted = 0))')
+      .bind(Number(a.id) || 0, u.uname, u.uname).first();
+    if (!m) return { error: 'not_found' };
+    if (m.to_uname === u.uname && !m.read) await db.prepare('UPDATE mails SET read = 1 WHERE id = ?').bind(m.id).run();
+    return { ok: true, mail: { id: m.id, subject: m.subject, body: m.body, created_at: m.created_at, from_name: m.from_name,
+      from: m.from_uname ? `${m.from_uname}@${MAIL_HOST}` : null, to: `${m.to_uname}@${MAIL_HOST}` } };
+  },
+  async mail_send(db, a) {
+    const u = await userFromToken(db, a.token);
+    if (!u) return { error: 'signed_out' };
+    const to = unameFromAddress(a.to);
+    const subject = String(a.subject ?? '').trim().slice(0, 150), body = String(a.body ?? '');
+    if (!body.trim() && !subject) return { error: 'empty' };
+    if (body.length > MAX_MAIL_BODY) return { error: 'too_long' };
+    const rcpt = to && await db.prepare('SELECT uname FROM users WHERE uname = ?').bind(to).first();
+    if (!rcpt) return { error: 'no_such_address' };
+    const { n } = await db.prepare("SELECT COUNT(*) AS n FROM mails WHERE from_uname = ? AND created_at > ?")
+      .bind(u.uname, new Date(Date.now() - 864e5).toISOString()).first();
+    if (n >= MAX_SENT_PER_DAY) return { error: 'too_many' };
+    await db.prepare('INSERT INTO mails (to_uname, from_uname, from_name, subject, body, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .bind(to, u.uname, u.username, subject || '(no subject)', body, now()).run();
+    return { ok: true };
+  },
+  async mail_delete(db, a) {
+    const u = await userFromToken(db, a.token);
+    if (!u) return { error: 'signed_out' };
+    const id = Number(a.id) || 0;
+    await db.batch([
+      db.prepare('UPDATE mails SET deleted = 1 WHERE id = ? AND to_uname = ?').bind(id, u.uname),
+      db.prepare('UPDATE mails SET sender_deleted = 1 WHERE id = ? AND from_uname = ?').bind(id, u.uname),
+    ]);
+    return { ok: true };
+  },
+  async mail_unread(db, a) {
+    const u = await userFromToken(db, a.token);
+    if (!u) return { error: 'signed_out' };
+    const { n } = await db.prepare('SELECT COUNT(*) AS n FROM mails WHERE to_uname = ? AND read = 0 AND deleted = 0').bind(u.uname).first();
+    return { ok: true, unread: n };
   },
 
   async acct_logout(db, a) {

@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Man Mail</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div id="signed-out" class="center" hidden>
+    <div class="logo">✉</div>
+    <h1>Man Mail</h1>
+    <p class="dim" id="so-text"></p>
+    <a class="primary" id="so-btn" href="man://browser.domain/cmd/account"></a>
+  </div>
+
+  <div id="app" hidden>
+    <aside>
+      <div class="brand"><span class="logo sm">✉</span><b>Man Mail</b></div>
+      <div class="me" id="me"></div>
+      <button class="primary wide" id="compose-btn"></button>
+      <nav>
+        <button data-box="inbox" class="on"><span id="l-inbox"></span><b id="count"></b></button>
+        <button data-box="sent"><span id="l-sent"></span></button>
+      </nav>
+    </aside>
+    <section id="list"></section>
+    <article id="view">
+      <div id="empty" class="dim center-text"></div>
+      <div id="read" hidden>
+        <div class="read-head">
+          <h2 id="r-subject"></h2>
+          <div class="row">
+            <button class="ghost" id="r-reply"></button>
+            <button class="danger" id="r-delete"></button>
+          </div>
+        </div>
+        <div class="meta"><span id="r-from"></span> → <span id="r-to"></span> · <span id="r-date"></span></div>
+        <div class="body" id="r-body"></div>
+      </div>
+      <form id="compose" hidden>
+        <h2 id="c-title"></h2>
+        <label><span id="l-to"></span><input id="c-to" autocomplete="off" spellcheck="false" placeholder="name@man.mail"></label>
+        <label><span id="l-subject"></span><input id="c-subject" maxlength="150"></label>
+        <textarea id="c-body" maxlength="20000"></textarea>
+        <div class="row end">
+          <span id="c-err" class="err"></span>
+          <button type="button" class="ghost" id="c-cancel"></button>
+          <button type="submit" class="primary" id="c-send"></button>
+        </div>
+      </form>
+    </article>
+  </div>
+  <div id="toast" hidden></div>
+  <script src="/app.js"></script>
+</body>
+</html>

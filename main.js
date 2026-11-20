@@ -18,6 +18,7 @@ const INTERNAL_PAGES = {
   'whatsnew.domain': path.join(__dirname, 'src', 'whatsnew'),
   'search.domain': path.join(__dirname, 'src', 'search'), // Man Search
   'browser.domain': path.join(__dirname, 'src', 'hub'),   // all of Man Browser in one place
+  'mail.domain': path.join(__dirname, 'src', 'mail'),     // Man Mail: <name>@man.mail
 };
 const WHATS_NEW = 'man://whatsnew.domain/';
 // commands the browser.domain page may run
@@ -56,9 +57,10 @@ async function manHandler(req) {
   const host = u.hostname.toLowerCase();
   // Only the registrar page may read the signed-in account (other man:// sites are other origins,
   // and this answer has no CORS header, so they can't read it).
-  if (host === REGISTRAR && u.pathname === '/api/account') {
+  if (host === 'mail.domain' && u.pathname === '/api/mail-check') { checkMail(); return new Response('ok'); }
+  if ((host === REGISTRAR || host === 'mail.domain') && u.pathname === '/api/account') {
     const a = store.account;
-    return new Response(JSON.stringify(a ? { username: a.username, role: a.role, session: a.token } : null),
+    return new Response(JSON.stringify(a ? { username: a.username, role: a.role, address: a.address || '', session: a.token } : null),
       { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
   }
   if (host === REGISTRAR && u.pathname === '/api/dns') {
@@ -388,8 +390,10 @@ app.on('web-contents-created', (_e, wc) => {
       const m = /^man:\/\/browser\.domain\/cmd\/([a-z-]+)$/i.exec(url);
       if (!m) return;
       ev.preventDefault();
-      if (!/^man:\/\/browser\.domain\//i.test(wc.getURL())) return;
-      if (HUB_CMDS.has(m[1])) sendHost(wc, 'cmd', m[1]);
+      const from = wc.getURL();
+      if (/^man:\/\/browser\.domain\//i.test(from) && HUB_CMDS.has(m[1])) sendHost(wc, 'cmd', m[1]);
+      // Man Mail may only open the account panel (its "Sign in" button)
+      else if (/^man:\/\/mail\.domain\//i.test(from) && m[1] === 'account') sendHost(wc, 'cmd', 'account');
     });
     // A page asked "are you sure you want to leave?". Electron would silently cancel the navigation,
     // so ask the person like Chrome does.
@@ -562,18 +566,24 @@ async function accountApi(fn, body) {
   });
   return r.json();
 }
-const publicAccount = () => (store.account ? { username: store.account.username, role: store.account.role } : null);
+const publicAccount = () => (store.account ? {
+  username: store.account.username, role: store.account.role, address: store.account.address || '', recovery: !!store.account.recovery,
+} : null);
 function accountChanged() {
   saveNow();
   for (const w of BrowserWindow.getAllWindows()) w.webContents.send('account-changed', publicAccount());
+  checkMail();
 }
-async function accountSignIn(kind, username, password) {
+// sign up / sign in / reset with a recovery code: all three end with a session (signup and reset also give a new recovery code)
+async function accountSignIn(kind, ...args) {
   try {
-    const res = await accountApi(kind === 'signup' ? 'acct_signup' : 'acct_login', { username, password });
+    const res = kind === 'reset'
+      ? await accountApi('acct_reset', { username: args[0], code: args[1], password: args[2] })
+      : await accountApi(kind === 'signup' ? 'acct_signup' : 'acct_login', { username: args[0], password: args[1] });
     if (!res || !res.ok) return { error: (res && res.error) || 'server' };
-    store.account = { token: res.token, username: res.user.username, role: res.user.role };
+    store.account = { token: res.token, ...res.user };
     accountChanged();
-    return { ok: true, account: publicAccount() };
+    return { ok: true, account: publicAccount(), recovery: res.recovery || null };
   } catch { return { error: 'offline' }; }
 }
 async function refreshAccount() {
@@ -581,13 +591,43 @@ async function refreshAccount() {
   try {
     const res = await accountApi('acct_me', { token: store.account.token });
     if (res && res.ok) {
-      if (res.user.role !== store.account.role || res.user.username !== store.account.username) {
-        Object.assign(store.account, res.user);
-        accountChanged();
-      }
+      const before = JSON.stringify(publicAccount());
+      Object.assign(store.account, res.user);
+      if (JSON.stringify(publicAccount()) !== before) accountChanged();
     } else if (res && res.error === 'signed_out') { store.account = null; accountChanged(); }
   } catch { /* offline: keep the saved account */ }
 }
+// unread Man Mail → a dot on the account button
+let mailUnread = 0;
+async function checkMail() {
+  let n = 0;
+  if (store.account) {
+    try { const r = await accountApi('mail_unread', { token: store.account.token }); n = (r && r.unread) || 0; } catch { return; }
+  }
+  mailUnread = n;
+  for (const w of BrowserWindow.getAllWindows()) w.webContents.send('mail-unread', n);
+}
+setInterval(checkMail, 2 * 60e3);
+ipcMain.handle('mail:unread', () => mailUnread);
+ipcMain.on('mail:check', () => checkMail());
+ipcMain.handle('account:reset', (_e, username, code, password) => accountSignIn('reset', username, code, password));
+ipcMain.handle('account:recovery-new', async () => {
+  if (!store.account) return { error: 'signed_out' };
+  try {
+    const res = await accountApi('acct_recovery_new', { token: store.account.token });
+    if (!res.ok) return { error: res.error || 'server' };
+    store.account.recovery = true;
+    accountChanged();
+    return { ok: true, recovery: res.recovery };
+  } catch { return { error: 'offline' }; }
+});
+ipcMain.handle('account:change-password', async (_e, oldPassword, newPassword) => {
+  if (!store.account) return { error: 'signed_out' };
+  try {
+    const res = await accountApi('acct_change_password', { token: store.account.token, old: oldPassword, password: newPassword });
+    return res.ok ? { ok: true } : { error: res.error || 'server' };
+  } catch { return { error: 'offline' }; }
+});
 ipcMain.handle('account:get', () => publicAccount());
 ipcMain.handle('account:signup', (_e, username, password) => accountSignIn('signup', username, password));
 ipcMain.handle('account:login', (_e, username, password) => accountSignIn('login', username, password));
@@ -692,7 +732,7 @@ if (!SHOT && !app.requestSingleInstanceLock()) {
     setupSession(session.fromPartition('persist:main'));
     setupSession(session.fromPartition('incognito'));
     setupUpdates();
-    refreshAccount();
+    refreshAccount().then(checkMail);
 
     const argUrls = urlsFromArgv(process.argv);
     if (process.env.MB_URL) argUrls.push(process.env.MB_URL);

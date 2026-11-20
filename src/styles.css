@@ -143,6 +143,26 @@ html[dir="rtl"] #addr:placeholder-shown { direction: rtl; }
 .acct-form .inp { height: 38px; }
 .acct-form .btn { height: 40px; margin-top: 6px; }
 .acct-err { color: var(--danger); font-size: 12.5px; min-height: 18px; }
+.account-btn { position: relative; }
+.acct-dot { position: absolute; top: 4px; inset-inline-end: 4px; width: 9px; height: 9px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 0 2px var(--bar); }
+.acct-addr { margin-top: 2px; padding: 4px 12px; border-radius: 14px; background: var(--field); color: var(--text); font-size: 13px; direction: ltr; }
+.acct-addr:hover { background: var(--hover); }
+.acct-card .btn { margin-top: 10px; }
+.acct-section { margin: 14px 8px 0; padding: 14px 4px 4px; border-top: 1px solid var(--line); }
+.acct-section h4, .acct-section summary { margin: 0 0 8px; font-size: 13.5px; font-weight: 600; cursor: pointer; }
+.acct-section .btn { margin-top: 8px; }
+.acct-section .acct-form { padding: 6px 0 0; }
+.acct-warn { padding: 10px 12px; border-radius: 10px; font-size: 12.5px; line-height: 1.5; color: #b45309; background: rgba(245, 158, 11, .12); border: 1px solid rgba(245, 158, 11, .35); }
+body.dark .acct-warn, body.incog .acct-warn { color: #fbbf24; }
+.acct-note.left { text-align: start; max-width: none; }
+.acct-note.pad { padding: 0 10px 10px; }
+.acct-links { display: flex; justify-content: center; margin: 10px 0 4px; }
+.linkish { color: var(--accent); font-size: 13px; text-decoration: underline; }
+.code-card { margin: 8px 6px 14px; padding: 16px; border-radius: 14px; border: 2px solid var(--accent); background: var(--accent-soft); display: flex; flex-direction: column; gap: 8px; text-align: center; }
+.code-card .acct-note { max-width: none; }
+.code { font: 700 19px/1.3 Consolas, "Cascadia Code", monospace; letter-spacing: 1px; direction: ltr; user-select: all; padding: 10px; border-radius: 10px; background: var(--panel); }
+.code-row { display: flex; gap: 8px; justify-content: center; }
+.inp.ltr { direction: ltr; font-family: Consolas, monospace; letter-spacing: .5px; }
 .update-btn:hover { filter: brightness(1.08); }
 @keyframes bump { 30% { transform: translateY(3px) scale(1.12); color: var(--accent); } }
 

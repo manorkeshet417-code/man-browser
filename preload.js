@@ -1,7 +1,7 @@
 'use strict';
 const { contextBridge, ipcRenderer } = require('electron');
 
-const CHANNELS = ['cmd', 'open-tab', 'search', 'blocked', 'download', 'store-changed', 'fullscreen', 'update-ready', 'account-changed'];
+const CHANNELS = ['cmd', 'open-tab', 'search', 'blocked', 'download', 'store-changed', 'fullscreen', 'update-ready', 'account-changed', 'mail-unread'];
 
 contextBridge.exposeInMainWorld('mb', {
   init: () => ipcRenderer.invoke('init'),
@@ -28,4 +28,8 @@ contextBridge.exposeInMainWorld('mb', {
   signUp: (username, password) => ipcRenderer.invoke('account:signup', username, password),
   signIn: (username, password) => ipcRenderer.invoke('account:login', username, password),
   signOut: () => ipcRenderer.invoke('account:logout'),
+  resetPassword: (username, code, password) => ipcRenderer.invoke('account:reset', username, code, password),
+  newRecoveryCode: () => ipcRenderer.invoke('account:recovery-new'),
+  changePassword: (oldPassword, newPassword) => ipcRenderer.invoke('account:change-password', oldPassword, newPassword),
+  mailUnread: () => ipcRenderer.invoke('mail:unread'),
 });
