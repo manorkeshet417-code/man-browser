@@ -86,3 +86,9 @@ footer { padding: 34px 0 50px; text-align: center; color: var(--dim); font-size:
 .legal li { margin: 4px 0; }
 .legal strong { color: var(--text); }
 .legal .box { padding: 14px 18px; border-radius: 14px; background: rgba(26, 18, 48, .85); border: 1px solid var(--line); }
+
+/* development stopped (20 Nov 2026) */
+.stopped { margin: 18px auto 0; max-width: 620px; padding: 14px 18px; border-radius: 14px; background: rgba(26, 18, 48, .85); border: 1px solid var(--line); border-inline-start: 4px solid var(--pink); display: flex; flex-direction: column; gap: 4px; text-align: start; }
+.stopped b { color: var(--text); }
+.stopped span { color: var(--dim); font-size: 14.5px; }
+.hero .stopped { margin-inline: 0; }
